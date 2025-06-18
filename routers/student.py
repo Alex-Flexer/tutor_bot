@@ -53,30 +53,40 @@ class Form(StatesGroup):
 form_router = Router()
 
 
-async def show_variant_results(message: Message, state: FSMContext) -> None:
+async def show_results(message: Message, state: FSMContext) -> None:
     text = "Результат:\n\n"
 
     data = await state.get_data()
 
+    preparation_type = data["preparation_type"]
     exam_type = data["exam_type"]
-    variant_idx = data["variant_idx"]
-    task_idx = data["task_idx"]
+
+    task_idx = data["task_idx"]if preparation_type == PreparationTypes.variants else data["line_idx"]
 
     if task_idx < 5 and exam_type == ExamTypes.oge:
         task_img = data["task_img"]
         await task_img.delete()
 
-    user_answers: list[str] = data.get("answers", [])
-    right_answers: list[str] = ANSWERS[exam_type.value][variant_idx]
+    student_answers: list[str] = data.get("answers", [])
+    
+    # print(len(ANSWERS[exam_type.value]), data["variants"], exam_type.value)
+    # preparation_type(ANSWERS[exam_type.value][data["variants"]])
+
+    right_answers: list[str] = (
+        ANSWERS[exam_type.value][data["variant_idx"]]
+        if preparation_type == PreparationTypes.variants
+        else
+        [ANSWERS[exam_type.value][variant_idx][task_idx] for variant_idx in data["variants"]]
+    )
 
     cnt_right_solutions = 0
 
-    for idx, (user_answer, right_answer) in enumerate(zip(user_answers, right_answers)):
+    for idx, (user_answer, right_answer) in enumerate(zip(student_answers, right_answers)):
         verdict = user_answer.replace(".", ",").replace(" ", "") == right_answer
         cnt_right_solutions += verdict
         text += f"{idx + 1}) {"+" if verdict else "-"}\n"
 
-    text += f"\nВаш результат: {cnt_right_solutions}/{len(user_answers)}"
+    text += f"\nВаш результат: {cnt_right_solutions}/{len(student_answers)}"
 
     if cnt_right_solutions == len(right_answers):
         photo = FSInputFile("./images/perfect_img.jpg")
@@ -91,10 +101,10 @@ async def show_variant_results(message: Message, state: FSMContext) -> None:
     await message.answer(
         "Хотите продолжить подготовку?",
         reply_markup=(
-            keyboards.EXAM_TYPE_INLINE_KEYBOARD if len(user_answers) != len(right_answers)
+            keyboards.EXAM_TYPE_INLINE_KEYBOARD if len(student_answers) != len(right_answers)
             else (
                 keyboards.EGE_INLINE_KEYBOARD
-                if exam_type == ExamTypes.oge
+                if exam_type == ExamTypes.ege
                 else keyboards.OGE_INLINE_KEYBOARD)
         )
     )
@@ -145,13 +155,13 @@ async def show_line_task(message: Message, state: FSMContext) -> None:
     variant_idx = variants[task_idx]
 
     photo_path = os.path.join(".", exam_type.value, str(variant_idx), str(line_idx) + ".png")
-    
+
     print(photo_path)
 
     photo = FSInputFile(photo_path)
     caption = f"ЗАДАНИЕ №{task_idx + 1}"
-    
-    if exam_type == ExamTypes.oge and task_idx == 0:
+
+    if exam_type == ExamTypes.oge and line_idx < 5 and task_idx == 0:
         task_img = await message.answer_photo(FSInputFile(f"./oge/{variant_idx}/img.png"))
         await state.update_data(task_img=task_img)
 
@@ -164,7 +174,7 @@ async def show_line_task(message: Message, state: FSMContext) -> None:
     else:
         last_msg = data["last_msg"]
 
-        if exam_type == ExamTypes.oge and task_idx < 5:
+        if exam_type == ExamTypes.oge and line_idx < 5:
             task_img = data["task_img"]
             await task_img.edit_media(
                 media=InputMediaPhoto(media=FSInputFile(f"./oge/{variant_idx}/img.png"))
@@ -230,12 +240,10 @@ async def process_preparation_type(callback: CallbackQuery, state: FSMContext) -
 
 @form_router.callback_query(F.data.startswith("variant_"))
 async def process_variant_number(callback: CallbackQuery, state: FSMContext) -> None:
-    variant_number = int(callback.data.lstrip("variant_"))
+    variant_idx = int(callback.data.lstrip("variant_"))
     message = callback.message
 
     exam_type = await state.get_value("exam_type")
-
-    variant_idx = variant_number - 1
 
     await state.update_data(
         task_idx=0,
@@ -244,7 +252,7 @@ async def process_variant_number(callback: CallbackQuery, state: FSMContext) -> 
     )
 
     await state.set_state(Form.solving_tasks)
-    await message.answer(f"ВАРИАНТ №{variant_number}", reply_markup=ReplyKeyboardRemove())
+    await message.answer(f"ВАРИАНТ №{variant_idx}", reply_markup=ReplyKeyboardRemove())
 
     await show_variant_task(message, state)
 
@@ -303,21 +311,23 @@ async def process_answer_task(message: Message, state: FSMContext) -> None:
         else get_tasks_number(exam_type, data["variant_idx"])
     )
 
+    await message.delete()
+
     if task_idx == max_tasks:
-        await show_variant_results(message, state)
+        await data["last_msg"].delete()
+        await show_results(message, state)
 
         await state.clear()
-        await state.set_data(answers=[])
+        await state.update_data(answers=[])
 
     else:
-        await message.delete()
         await show_task(message, state)
 
 
 @form_router.callback_query(Form.solving_tasks, F.data.contains("test_stop"))
 async def process_stop_final(callback: CallbackQuery, state: FSMContext) -> None:
     if await state.get_value("variant_idx") is not None:
-        await show_variant_results(callback.message, state)
+        await show_results(callback.message, state)
     else:
         await callback.message.answer(
             "Тест приостановлен.",
