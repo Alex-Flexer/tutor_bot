@@ -61,6 +61,5 @@ keyboard2captions = {
     keyboards.OGE_INLINE_KEYBOARD: AKS_CONTINUE,
     keyboards.PREPARATION_TYPE_INLINE_KEYBOARD: CHOOSE_PREPARATION_TYPE,
     keyboards.get_variants_inline_keyboard(): CHOOSE_VARIANT_NUMBER,
-    keyboards.get_lines_inline_keyboard(): CHOOSE_TASK_NUMBER,
     keyboards.TASKS_NUMBER_INLINE_KEYBOARD: CHOOSE_TASKS_NUMBER
 }

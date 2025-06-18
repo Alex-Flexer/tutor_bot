@@ -32,7 +32,7 @@ def get_variants_number(exam_type: ExamTypes) -> int:
 
 for exam_type in ExamTypes:
     variants_number = get_variants_number(exam_type)
-    random_tasks_number = get_tasks_number(exam_type, random.randint(0, variants_number))
+    random_tasks_number = get_tasks_number(exam_type, random.randint(0, variants_number - 1))
 
     assert (
         all(
@@ -198,7 +198,10 @@ async def show_task(message: Message, state: FSMContext) -> None:
 
 @form_router.callback_query(F.data == "student_exams")
 async def process_student_exams(callback: CallbackQuery) -> None:
-    await callback.message.edit_text(captions.CHOOSE_EXAM_TYPE, reply_markup=keyboards.EXAM_TYPE_INLINE_KEYBOARD)
+    await callback.message.edit_text(
+        text=captions.CHOOSE_EXAM_TYPE,
+        reply_markup=keyboards.EXAM_TYPE_INLINE_KEYBOARD
+    )
 
 
 @form_router.callback_query(F.data.startswith("start_"))
@@ -226,7 +229,8 @@ async def process_preparation_type(callback: CallbackQuery, state: FSMContext) -
     exam_type = await state.get_value("exam_type")
 
     new_keyboard, new_text = (
-        (keyboards.get_variants_inline_keyboard(get_variants_number(exam_type)), captions.CHOOSE_VARIANT_NUMBER)
+        (keyboards.get_variants_inline_keyboard(
+            get_variants_number(exam_type)), captions.CHOOSE_VARIANT_NUMBER)
         if preparation_type == PreparationTypes.variants
         else (keyboards.get_lines_inline_keyboard(get_tasks_number(exam_type)), captions.CHOOSE_TASK_NUMBER)
     )
@@ -340,32 +344,46 @@ async def process_stop_final(callback: CallbackQuery, state: FSMContext) -> None
             reply_markup=keyboards.EXAM_TYPE_INLINE_KEYBOARD
         )
 
-    await state.set_state(None)
-    await state.update_data(answers=[], task_idx=None, variant_idx=None, task_img=None)
+    await state.clear()
+    await state.update_data(answers=[])
+
     await callback.answer()
 
 
 @form_router.callback_query(F.data.startswith("back_to_"))
 async def process_stop_final(callback: CallbackQuery, state: FSMContext) -> None:
     exam_type = await state.get_value("exam_type")
-    
+
     if exam_type is None:
-        await callback.message.edit_text(
-            text=captions.CHOOSE_EXAM_TYPE,
-            reply_markup=keyboards.EXAM_TYPE_INLINE_KEYBOARD
+        text, keyboard = (
+            (
+                captions.CHOOSE_OPTION,
+                keyboards.STUDENT_MENU_INLINE_KEYBOARD
+            )
+            if callback.message.reply_markup.dict() == keyboards.EXAM_TYPE_INLINE_KEYBOARD.dict()
+            else (
+                captions.CHOOSE_EXAM_TYPE,
+                keyboards.EXAM_TYPE_INLINE_KEYBOARD
+            )
         )
     else:
         previous_keyboard_name = callback.data.removeprefix("back_to_").upper()
 
-        keyboard = (
-            keyboards.get_lines_inline_keyboard(get_tasks_number(exam_type))
+        keyboard, text = (
+            (
+                keyboards.get_lines_inline_keyboard(get_tasks_number(exam_type)),
+                captions.CHOOSE_PREPARATION_TYPE
+            )
             if previous_keyboard_name == "LINE"
-            else getattr(keyboards, f"{previous_keyboard_name}_INLINE_KEYBOARD")
+            else (
+                getattr(keyboards, f"{previous_keyboard_name}_INLINE_KEYBOARD"),
+                captions.keyboard2captions[keyboard]
+            )
         )
 
-        await callback.message.edit_text(
-            text=captions.keyboard2captions[keyboard],
-            reply_markup=keyboard
-        )
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=keyboard
+    )
 
     await callback.answer()
