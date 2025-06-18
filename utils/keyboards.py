@@ -79,36 +79,41 @@ PARENT_MENU_INLINE_KEYBOARD = InlineKeyboardMarkup(
 PREPARATION_TYPE_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Варианты", callback_data="student_exam_variants"),
-         InlineKeyboardButton(text="Задания", callback_data="student_exam_tasks")],
+         InlineKeyboardButton(text="Задания", callback_data="student_exam_lines")],
         [_BACK_BUTTON]
     ]
 )
 
+TASKS_NUMBER_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text=str(tasks_number),
+                callback_data=f"tasks_{tasks_number}"
+            )
+            for tasks_number in (3, 5, 10, 15)
+        ]
+    ]
+)
 
-def get_tasks_inline_keyboard(exam_type: str) -> InlineKeyboardMarkup:
+
+def get_lines_inline_keyboard(tasks_number: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    tasks_number = range([
-        task for task in listdir(f"./{exam_type}/0/")
-        if task.endswith(".png") and task.rstrip(".png").isdecimal()
-    ])
-
     for task in range(tasks_number):
-        builder.button(text=task, callback_data=f"task_{task}")
+        builder.button(text=str(task + 1), callback_data=f"line_{task}")
 
     builder.adjust(4, repeat=True)
-    builder.button(_BACK_BUTTON)
+    # builder.button(_BACK_BUTTON)
     return builder.as_markup()
 
 
-def get_variants_inline_keyboard(exam_type: str) -> InlineKeyboardMarkup:
+def get_variants_inline_keyboard(variants_number: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-
-    variants_number = len(listdir(f"./{exam_type}"))
 
     for var_num in range(variants_number):
         builder.button(text=str(var_num + 1), callback_data=f"variant_{var_num}")
 
     builder.adjust(4, repeat=True)
-    builder.button(_BACK_BUTTON)
+    # builder.button(_BACK_BUTTON)
     return builder.as_markup()

@@ -8,4 +8,4 @@ class ExamTypes(Enum):
 
 class PreparationTypes(Enum):
     variants = "variants"
-    tasks = "tasks"
+    lines = "lines"

@@ -14,7 +14,7 @@ from routers import common_router, student_router
 
 BOT_COMMANDS = [
     BotCommand(command="start", description="Start bot"),
-    BotCommand(command="solve", description="Start solving tasks"),
+    BotCommand(command="menu", description="Main menu"),
     BotCommand(command="contacts", description="Get contacts")
 ]
 
