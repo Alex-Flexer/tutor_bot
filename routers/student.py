@@ -13,7 +13,7 @@ from aiogram.types import (
     InputMediaPhoto
 )
 
-from utils import keyboards, PreparationTypes, ExamTypes
+from utils import keyboards, captions, PreparationTypes, ExamTypes
 
 
 def get_tasks_number(exam_type: ExamTypes, variant_idx: int = 0) -> int:
@@ -54,7 +54,7 @@ form_router = Router()
 
 
 async def show_results(message: Message, state: FSMContext) -> None:
-    text = "Результат:\n\n"
+    text = captions.YOUR_RESULT_NO_DATA + "\n\n"
 
     data = await state.get_data()
 
@@ -68,7 +68,7 @@ async def show_results(message: Message, state: FSMContext) -> None:
         await task_img.delete()
 
     student_answers: list[str] = data.get("answers", [])
-    
+
     # print(len(ANSWERS[exam_type.value]), data["variants"], exam_type.value)
     # preparation_type(ANSWERS[exam_type.value][data["variants"]])
 
@@ -84,22 +84,23 @@ async def show_results(message: Message, state: FSMContext) -> None:
     for idx, (user_answer, right_answer) in enumerate(zip(student_answers, right_answers)):
         verdict = user_answer.replace(".", ",").replace(" ", "") == right_answer
         cnt_right_solutions += verdict
-        text += f"{idx + 1}) {"+" if verdict else "-"}\n"
 
-    text += f"\nВаш результат: {cnt_right_solutions}/{len(student_answers)}"
+        text += captions.RESULT_LINE.format(idx + 1, "+" if verdict else "-")
+
+    text += "\n" + captions.YOUR_RESULT.format(cnt_right_solutions, len(student_answers))
 
     if cnt_right_solutions == len(right_answers):
         photo = FSInputFile("./images/perfect_img.jpg")
         await message.answer_photo(
-            photo,
-            text,
+            photo=photo,
+            caption=text,
             reply_markup=ReplyKeyboardRemove()
         )
     else:
         await message.answer(text, reply_markup=ReplyKeyboardRemove())
 
     await message.answer(
-        "Хотите продолжить подготовку?",
+        text=captions.AKS_CONTINUE,
         reply_markup=(
             keyboards.EXAM_TYPE_INLINE_KEYBOARD if len(student_answers) != len(right_answers)
             else (
@@ -119,7 +120,7 @@ async def show_variant_task(message: Message, state: FSMContext) -> None:
 
     photo_path = os.path.join(".", exam_type.value, str(variant_idx), str(task_idx) + ".png")
     photo = FSInputFile(photo_path)
-    caption = f"ЗАДАНИЕ №{task_idx + 1}"
+    caption = captions.TASK_NUMBER.format(task_idx + 1)
 
     if task_idx > 0:
         last_msg = data["last_msg"]
@@ -136,7 +137,7 @@ async def show_variant_task(message: Message, state: FSMContext) -> None:
             await task_img.delete()
 
     last_msg = await message.answer_photo(
-        photo,
+        photo=photo,
         caption=caption,
         reply_markup=keyboards.STOP_TEST_INLINE_KEYBOARD
     )
@@ -159,7 +160,7 @@ async def show_line_task(message: Message, state: FSMContext) -> None:
     print(photo_path)
 
     photo = FSInputFile(photo_path)
-    caption = f"ЗАДАНИЕ №{task_idx + 1}"
+    caption = captions.TASK_NUMBER.format(task_idx + 1)
 
     if exam_type == ExamTypes.oge and line_idx < 5 and task_idx == 0:
         task_img = await message.answer_photo(FSInputFile(f"./oge/{variant_idx}/img.png"))
@@ -192,27 +193,26 @@ async def show_task(message: Message, state: FSMContext) -> None:
     if await state.get_value("preparation_type") == PreparationTypes.variants:
         await show_variant_task(message, state)
     else:
-        print("hahhjhjhjha" * 30)
         await show_line_task(message, state)
 
 
 @form_router.callback_query(F.data == "student_exams")
 async def process_student_exams(callback: CallbackQuery) -> None:
-    await callback.message.edit_text("Выберите тип экзамена:", reply_markup=keyboards.EXAM_TYPE_INLINE_KEYBOARD)
+    await callback.message.edit_text(captions.CHOOSE_EXAM_TYPE, reply_markup=keyboards.EXAM_TYPE_INLINE_KEYBOARD)
 
 
 @form_router.callback_query(F.data.startswith("start_"))
 async def process_exam_choice(callback: CallbackQuery, state: FSMContext) -> None:
     exam_type = (
         ExamTypes.ege
-        if callback.data.lstrip("start_") == ExamTypes.ege.value
+        if callback.data.removeprefix("start_") == ExamTypes.ege.value
         else ExamTypes.oge
     )
 
     await state.update_data(exam_type=exam_type)
 
     await callback.message.edit_text(
-        f"Выберите вид подготовки:",
+        text=captions.CHOOSE_PREPARATION_TYPE,
         reply_markup=keyboards.PREPARATION_TYPE_INLINE_KEYBOARD
     )
 
@@ -221,14 +221,14 @@ async def process_exam_choice(callback: CallbackQuery, state: FSMContext) -> Non
 
 @form_router.callback_query(F.data.startswith("student_exam_"))
 async def process_preparation_type(callback: CallbackQuery, state: FSMContext) -> None:
-    preparation_type = PreparationTypes[callback.data.lstrip("student_exam_")]
+    preparation_type = PreparationTypes[callback.data.removeprefix("student_exam_")]
 
     exam_type = await state.get_value("exam_type")
 
     new_keyboard, new_text = (
-        (keyboards.get_variants_inline_keyboard(get_variants_number(exam_type)), "Выберите номер варианта:")
+        (keyboards.get_variants_inline_keyboard(get_variants_number(exam_type)), captions.CHOOSE_VARIANT_NUMBER)
         if preparation_type == PreparationTypes.variants
-        else (keyboards.get_lines_inline_keyboard(get_tasks_number(exam_type)), "Выберите номер задания:")
+        else (keyboards.get_lines_inline_keyboard(get_tasks_number(exam_type)), captions.CHOOSE_TASK_NUMBER)
     )
 
     await callback.message.edit_text(new_text, reply_markup=new_keyboard)
@@ -240,7 +240,7 @@ async def process_preparation_type(callback: CallbackQuery, state: FSMContext) -
 
 @form_router.callback_query(F.data.startswith("variant_"))
 async def process_variant_number(callback: CallbackQuery, state: FSMContext) -> None:
-    variant_idx = int(callback.data.lstrip("variant_"))
+    variant_idx = int(callback.data.removeprefix("variant_"))
     message = callback.message
 
     exam_type = await state.get_value("exam_type")
@@ -261,17 +261,20 @@ async def process_variant_number(callback: CallbackQuery, state: FSMContext) -> 
 
 @form_router.callback_query(F.data.startswith("line_"))
 async def process_line_number(callback: CallbackQuery, state: FSMContext) -> None:
-    line_idx = int(callback.data.lstrip("line_"))
+    line_idx = int(callback.data.removeprefix("line_"))
     await state.update_data(line_idx=line_idx)
 
-    await callback.message.edit_text("Выберте число заданий:", reply_markup=keyboards.TASKS_NUMBER_INLINE_KEYBOARD)
+    await callback.message.edit_text(
+        text=captions.CHOOSE_TASKS_NUMBER,
+        reply_markup=keyboards.TASKS_NUMBER_INLINE_KEYBOARD
+    )
 
     await callback.answer()
 
 
 @form_router.callback_query(F.data.startswith("tasks_"))
 async def process_tasks_number(callback: CallbackQuery, state: FSMContext) -> None:
-    tasks_number = int(callback.data.lstrip("tasks_"))
+    tasks_number = int(callback.data.removeprefix("tasks_"))
     line_idx = await state.get_value("line_idx")
 
     message = callback.message
@@ -285,7 +288,10 @@ async def process_tasks_number(callback: CallbackQuery, state: FSMContext) -> No
     )
 
     await state.set_state(Form.solving_tasks)
-    await message.answer(f"НОМЕР №{line_idx + 1}", reply_markup=ReplyKeyboardRemove())
+    await message.answer(
+        text=captions.LINE_NUMBER.format(line_idx + 1),
+        reply_markup=ReplyKeyboardRemove()
+    )
 
     await show_task(message, state)
     await callback.answer()
@@ -330,10 +336,36 @@ async def process_stop_final(callback: CallbackQuery, state: FSMContext) -> None
         await show_results(callback.message, state)
     else:
         await callback.message.answer(
-            "Тест приостановлен.",
+            text=captions.TEST_STOPPED,
             reply_markup=keyboards.EXAM_TYPE_INLINE_KEYBOARD
         )
 
     await state.set_state(None)
     await state.update_data(answers=[], task_idx=None, variant_idx=None, task_img=None)
+    await callback.answer()
+
+
+@form_router.callback_query(F.data.startswith("back_to_"))
+async def process_stop_final(callback: CallbackQuery, state: FSMContext) -> None:
+    exam_type = await state.get_value("exam_type")
+    
+    if exam_type is None:
+        await callback.message.edit_text(
+            text=captions.CHOOSE_EXAM_TYPE,
+            reply_markup=keyboards.EXAM_TYPE_INLINE_KEYBOARD
+        )
+    else:
+        previous_keyboard_name = callback.data.removeprefix("back_to_").upper()
+
+        keyboard = (
+            keyboards.get_lines_inline_keyboard(get_tasks_number(exam_type))
+            if previous_keyboard_name == "LINE"
+            else getattr(keyboards, f"{previous_keyboard_name}_INLINE_KEYBOARD")
+        )
+
+        await callback.message.edit_text(
+            text=captions.keyboard2captions[keyboard],
+            reply_markup=keyboard
+        )
+
     await callback.answer()
