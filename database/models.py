@@ -2,7 +2,7 @@ from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import (
     Column, Integer, String, Boolean,
     ForeignKey, DateTime, create_engine,
-    UniqueConstraint
+    UniqueConstraint, CheckConstraint
 )
 
 
@@ -47,8 +47,18 @@ class Homework(Base):
     date_submitting_homework = Column(DateTime)
 
     submitted = Column(Boolean, default=False)
-    
-    __table_args__ = (UniqueConstraint('student_id', 'date_setting_homework', name='student_id_date_setting_homework_uc'),)
+    checked = Column(Boolean, default=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            'student_id', 'date_setting_homework',
+            name='student_id_date_setting_homework_uc'
+        ),
+        CheckConstraint(
+            'NOT (submitted IS FALSE AND checked IS TRUE)',
+            name='check_after_submitted_cc'
+        )
+    )
 
 
 engine = create_engine(DB_URL, connect_args={"check_same_thread": False})

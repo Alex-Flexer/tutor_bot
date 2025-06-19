@@ -25,6 +25,8 @@ CHOOSE_TASK_NUMBER = "Выберите номер задания:"
 
 CHOOSE_TASKS_NUMBER = "Выберте число заданий:"
 
+CHOOSE_HOMEWORK_DATE = "Выберете дату домашнего задания:"
+
 HELLO_TEXT = """👋 Привет!
 Ты в умном боте для подготовки к ЕГЭ и ОГЭ математике.
 
@@ -53,6 +55,12 @@ CHOOSE_OPTION = "Выберете одну из представленный н�
 
 UNKNOWN_COMMAND = "Неизвестная команда."
 
+EMPTY = "Здесь пока ничего нет."
+
+TUTOR_COMMENT = "Комментарий куратора: \n\n{}"
+
+EMPTY_TUTOR_COMMENT = "Куратор не оставил комментария."
+
 keyboard2captions = {
     keyboards.MAIN_MENU_INLINE_KEYBOARD: CHOOSE_ROLE,
     keyboards.STUDENT_MENU_INLINE_KEYBOARD: CHOOSE_OPTION,
@@ -61,5 +69,7 @@ keyboard2captions = {
     keyboards.OGE_INLINE_KEYBOARD: AKS_CONTINUE,
     keyboards.PREPARATION_TYPE_INLINE_KEYBOARD: CHOOSE_PREPARATION_TYPE,
     keyboards.get_variants_inline_keyboard(): CHOOSE_VARIANT_NUMBER,
-    keyboards.TASKS_NUMBER_INLINE_KEYBOARD: CHOOSE_TASKS_NUMBER
+    keyboards.TASKS_NUMBER_INLINE_KEYBOARD: CHOOSE_TASKS_NUMBER,
+    keyboards.STUDENT_HW_INLINE_KEYBOARD: CHOOSE_OPTION,
+    keyboards.STUDENT_HW_OPTIONS_INLINE_KEYBOARD: CHOOSE_OPTION,
 }

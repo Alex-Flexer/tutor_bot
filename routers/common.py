@@ -23,8 +23,7 @@ async def command_contacts(message: Message) -> None:
 
 
 @form_router.message(Command("menu"))
-async def command_start(message: Message) -> None:
-    photo = FSInputFile("./images/start_img.jpg")
+async def command_menu(message: Message) -> None:
     await message.answer(
         text=captions.CHOOSE_ROLE,
         reply_markup=keyboards.MAIN_MENU_INLINE_KEYBOARD
@@ -32,15 +31,15 @@ async def command_start(message: Message) -> None:
 
 
 @form_router.callback_query(F.data.startswith("i_am_"))
-async def command_start(callback: CallbackQuery) -> None:
+async def process_i_am(callback: CallbackQuery) -> None:
     role = callback.data.lstrip("i_am_")
     message = callback.message
-    
+
     keyboard = getattr(keyboards, f"{role.upper()}_MENU_INLINE_KEYBOARD")
-    
+
     await message.edit_text(captions.CHOOSE_OPTION)
     await message.edit_reply_markup(reply_markup=keyboard)
-    
+
     await callback.answer()
 
 

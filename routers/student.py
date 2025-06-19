@@ -5,6 +5,7 @@ import os
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.utils.media_group import MediaGroupBuilder
 from aiogram.types import (
     Message,
     ReplyKeyboardRemove,
@@ -14,6 +15,7 @@ from aiogram.types import (
 )
 
 from utils import keyboards, captions, PreparationTypes, ExamTypes
+from database import utils as db_utils
 
 
 def get_tasks_number(exam_type: ExamTypes, variant_idx: int = 0) -> int:
@@ -68,9 +70,6 @@ async def show_results(message: Message, state: FSMContext) -> None:
         await task_img.delete()
 
     student_answers: list[str] = data.get("answers", [])
-
-    # print(len(ANSWERS[exam_type.value]), data["variants"], exam_type.value)
-    # preparation_type(ANSWERS[exam_type.value][data["variants"]])
 
     right_answers: list[str] = (
         ANSWERS[exam_type.value][data["variant_idx"]]
@@ -204,6 +203,80 @@ async def process_student_exams(callback: CallbackQuery) -> None:
     )
 
 
+@form_router.callback_query(F.data == "student_hw")
+async def process_student_hw(callback: CallbackQuery) -> None:
+    await callback.message.edit_text(
+        text=captions.CHOOSE_OPTION,
+        reply_markup=keyboards.STUDENT_HW_INLINE_KEYBOARD
+    )
+
+
+@form_router.callback_query(F.data == "student_my_hw")
+async def process_student_my_hw(callback: CallbackQuery) -> None:
+    await callback.message.edit_text(
+        text=captions.CHOOSE_OPTION,
+        reply_markup=keyboards.STUDENT_HW_OPTIONS_INLINE_KEYBOARD
+    )
+
+
+@form_router.callback_query(F.data.in_(("student_hw_checked", "student_hw_actual")))
+async def process_student_hw_checked(callback: CallbackQuery) -> None:
+    mode = callback.data.removeprefix("student_hw_") == "checked"
+    print(mode)
+
+    telegram_id = callback.from_user.id
+    homeworks = db_utils.get_homeworks(telegram_id=telegram_id, checked=mode, submitted=mode)
+
+    if not homeworks:
+        print(homeworks)
+        if homeworks is None:
+            name = callback.from_user.first_name
+            surname = callback.from_user.last_name
+
+            db_utils.add_student(name, surname, telegram_id)
+
+        await callback.message.edit_text(
+            text=captions.EMPTY,
+            reply_markup=keyboards.BACK_TO_STUDENT_HW_INLINE_KEYBOARD
+        )
+    else:
+        dates = db_utils.homeworks_to_str_dates(homeworks)
+
+        await callback.message.edit_text(
+            text=captions.CHOOSE_HOMEWORK_DATE,
+            reply_markup=keyboards.get_homework_dates_inline_keyboard(dates, "checked" if mode else "homework")
+        )
+
+
+@form_router.callback_query(F.data.startswith("homework_"))
+async def process_student_homework(callback: CallbackQuery) -> None:
+    mode, date = callback.data.removeprefix("homework_").split("_")
+    telegram_id = callback.from_user.id
+    print(mode, date, telegram_id, callback.data.removeprefix("homework_").split("_"), callback.data)
+
+    student = db_utils.get_student(telegram_id=telegram_id)
+    student_id = student.student_id
+
+    photos = os.listdir(db_utils.IMAGES_PATH.format(student_id, date, mode))
+
+    with open(db_utils.COMMENT_PATH.format(student_id, date, mode), 'r', encoding='utf-8') as comment_file:
+        comment = comment_file.read()
+
+    caption = captions.TUTOR_COMMENT.format(comment) if comment else captions.EMPTY_TUTOR_COMMENT
+
+    media_builder = MediaGroupBuilder(caption=caption)
+
+    for photo in photos:
+        media_builder.add(
+            type="photo",
+            media=FSInputFile(os.path.join(db_utils.IMAGES_PATH.format(student_id, date, mode), photo))
+        )
+
+    await callback.message.answer_media_group(media=media_builder.build())
+
+    await callback.answer()
+
+
 @form_router.callback_query(F.data.startswith("start_"))
 async def process_exam_choice(callback: CallbackQuery, state: FSMContext) -> None:
     exam_type = (
@@ -229,10 +302,15 @@ async def process_preparation_type(callback: CallbackQuery, state: FSMContext) -
     exam_type = await state.get_value("exam_type")
 
     new_keyboard, new_text = (
-        (keyboards.get_variants_inline_keyboard(
-            get_variants_number(exam_type)), captions.CHOOSE_VARIANT_NUMBER)
+        (
+            keyboards.get_variants_inline_keyboard(get_variants_number(exam_type)),
+            captions.CHOOSE_VARIANT_NUMBER
+        )
         if preparation_type == PreparationTypes.variants
-        else (keyboards.get_lines_inline_keyboard(get_tasks_number(exam_type)), captions.CHOOSE_TASK_NUMBER)
+        else (
+            keyboards.get_lines_inline_keyboard(get_tasks_number(exam_type)),
+            captions.CHOOSE_TASK_NUMBER
+        )
     )
 
     await callback.message.edit_text(new_text, reply_markup=new_keyboard)
@@ -246,8 +324,6 @@ async def process_preparation_type(callback: CallbackQuery, state: FSMContext) -
 async def process_variant_number(callback: CallbackQuery, state: FSMContext) -> None:
     variant_idx = int(callback.data.removeprefix("variant_"))
     message = callback.message
-
-    exam_type = await state.get_value("exam_type")
 
     await state.update_data(
         task_idx=0,
@@ -335,7 +411,7 @@ async def process_answer_task(message: Message, state: FSMContext) -> None:
 
 
 @form_router.callback_query(Form.solving_tasks, F.data.contains("test_stop"))
-async def process_stop_final(callback: CallbackQuery, state: FSMContext) -> None:
+async def process_stop(callback: CallbackQuery, state: FSMContext) -> None:
     if await state.get_value("variant_idx") is not None:
         await show_results(callback.message, state)
     else:
@@ -351,10 +427,12 @@ async def process_stop_final(callback: CallbackQuery, state: FSMContext) -> None
 
 
 @form_router.callback_query(F.data.startswith("back_to_"))
-async def process_stop_final(callback: CallbackQuery, state: FSMContext) -> None:
+async def process_back_to(callback: CallbackQuery, state: FSMContext) -> None:
     exam_type = await state.get_value("exam_type")
+    previous_keyboard_name = callback.data.removeprefix("back_to_").upper()
+    print(previous_keyboard_name)
 
-    if exam_type is None:
+    if exam_type is None and previous_keyboard_name == "LINE":
         text, keyboard = (
             (
                 captions.CHOOSE_OPTION,
@@ -366,9 +444,10 @@ async def process_stop_final(callback: CallbackQuery, state: FSMContext) -> None
                 keyboards.EXAM_TYPE_INLINE_KEYBOARD
             )
         )
+    elif previous_keyboard_name == "ACTUAL_HW_DATES":
+        text = captions.CHOOSE_OPTION
+        # keyboard = ...
     else:
-        previous_keyboard_name = callback.data.removeprefix("back_to_").upper()
-
         keyboard, text = (
             (
                 keyboards.get_lines_inline_keyboard(get_tasks_number(exam_type)),
@@ -376,8 +455,8 @@ async def process_stop_final(callback: CallbackQuery, state: FSMContext) -> None
             )
             if previous_keyboard_name == "LINE"
             else (
-                getattr(keyboards, f"{previous_keyboard_name}_INLINE_KEYBOARD"),
-                captions.keyboard2captions[keyboard]
+                (tmp_keyboard := getattr(keyboards, f"{previous_keyboard_name}_INLINE_KEYBOARD")),
+                captions.keyboard2captions[tmp_keyboard]
             )
         )
 
