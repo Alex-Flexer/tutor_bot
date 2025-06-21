@@ -1,5 +1,3 @@
-from os import listdir
-
 from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup
@@ -23,14 +21,66 @@ BACK_TO_MAIN_MENU_INLINE_BUTTON = InlineKeyboardButton(
     callback_data="back_to_main_menu"
 )
 
-BACK_TO_STUDENT_HW_MENU_INLINE_BUTTON = InlineKeyboardButton(
+BACK_TO_STUDENT_HW_INLINE_BUTTON = InlineKeyboardButton(
     text="Назад",
     callback_data="back_to_student_hw"
 )
 
-BACK_TO_STUDENT_HW_OPTIONS_MENU_INLINE_BUTTON = InlineKeyboardButton(
+BACK_TO_STUDENT_HW_OPTIONS_INLINE_BUTTON = InlineKeyboardButton(
     text="Назад",
     callback_data="back_to_student_hw_options"
+)
+
+BACK_TO_STUDENT_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [BACK_TO_STUDENT_MENU_INLINE_BUTTON]
+    ]
+)
+
+BACK_TO_STUDENT_HW_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[[BACK_TO_STUDENT_HW_INLINE_BUTTON]]
+)
+
+BACK_TO_STUDENT_PROFILE_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Назад", callback_data="back_to_student_profile")]
+    ]
+)
+
+BACK_TO_EDIT_STUDENT_PROFILE_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Назад", callback_data="back_to_edit_student_profile")]
+    ]
+)
+
+BACK_TO_STUDENT_HW_OPTIONS_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [BACK_TO_STUDENT_HW_OPTIONS_INLINE_BUTTON]
+    ]
+)
+
+BACK_TO_STUDENT_HW_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [BACK_TO_STUDENT_HW_INLINE_BUTTON]
+    ]
+)
+
+BACK_TO_HOMEWORK_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Назад", callback_data="back_to_homework_hw_dates")]
+    ]
+)
+
+BACK_TO_SUBMIT_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Назад", callback_data="back_to_submit_hw_dates")]
+    ]
+)
+
+BACK_TO_FEEDBACK_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Назад", callback_data="back_to_feedback_hw_dates")]
+    ]
 )
 
 STOP_TEST_INLINE_KEYBOARD = InlineKeyboardMarkup(
@@ -40,22 +90,22 @@ STOP_TEST_INLINE_KEYBOARD = InlineKeyboardMarkup(
 
 EGE_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="ЕГЭ", callback_data="start_ege")],
+        [InlineKeyboardButton(text="ЕГЭ", callback_data="select_exam_ege")],
         [BACK_TO_EXAM_TYPE_INLINE_BUTTON]
     ]
 )
 
 OGE_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="ОГЭ", callback_data="start_oge")],
+        [InlineKeyboardButton(text="ОГЭ", callback_data="select_exam_oge")],
         [BACK_TO_EXAM_TYPE_INLINE_BUTTON]
     ]
 )
 
 EXAM_TYPE_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="ОГЭ", callback_data="start_oge"),
-         InlineKeyboardButton(text="ЕГЭ", callback_data="start_ege")],
+        [InlineKeyboardButton(text="ОГЭ", callback_data="select_exam_oge"),
+         InlineKeyboardButton(text="ЕГЭ", callback_data="select_exam_ege")],
         [BACK_TO_STUDENT_MENU_INLINE_BUTTON]
     ]
 )
@@ -77,16 +127,26 @@ STUDENT_MENU_INLINE_KEYBOARD = InlineKeyboardMarkup(
     ]
 )
 
-STUDENT_BACK_INLINE_KEYBOARD = InlineKeyboardMarkup(
+
+STUDENT_PROFILE_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
+        [InlineKeyboardButton(text="Изменить данные", callback_data="edit_student_profile")],
         [BACK_TO_STUDENT_MENU_INLINE_BUTTON]
+    ]
+)
+
+EDIT_STUDENT_PROFILE_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Имя", callback_data="edit_student_name"),
+         InlineKeyboardButton(text="Фамилия", callback_data="edit_student_surname")],
+        [InlineKeyboardButton(text="Назад", callback_data="back_to_student_profile")]
     ]
 )
 
 STUDENT_HW_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Мои задания", callback_data="student_my_hw"),
-         InlineKeyboardButton(text="Сдать на проверку ДЗ", callback_data="student_hw_finish")],
+         InlineKeyboardButton(text="Сдать на проверку ДЗ", callback_data="student_submit_hw")],
         [BACK_TO_STUDENT_MENU_INLINE_BUTTON]
     ]
 )
@@ -95,7 +155,7 @@ STUDENT_HW_OPTIONS_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Актуальное", callback_data="student_hw_actual"),
          InlineKeyboardButton(text="Проверенное", callback_data="student_hw_checked")],
-        [BACK_TO_STUDENT_HW_MENU_INLINE_BUTTON]
+        [BACK_TO_STUDENT_HW_INLINE_BUTTON]
     ]
 )
 
@@ -115,8 +175,8 @@ PARENT_MENU_INLINE_KEYBOARD = InlineKeyboardMarkup(
 
 PREPARATION_TYPE_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Варианты", callback_data="student_exam_variants"),
-         InlineKeyboardButton(text="Задания", callback_data="student_exam_lines")],
+        [InlineKeyboardButton(text="Варианты", callback_data="preparation_type_variants"),
+         InlineKeyboardButton(text="Задания", callback_data="preparation_type_lines")],
         [BACK_TO_EXAM_TYPE_INLINE_BUTTON]
     ]
 )
@@ -131,19 +191,6 @@ TASKS_NUMBER_INLINE_KEYBOARD = InlineKeyboardMarkup(
             for tasks_number in (3, 5, 10, 15)
         ],
         [InlineKeyboardButton(text="Назад", callback_data="back_to_line")]
-    ]
-)
-
-
-BACK_TO_STUDENT_HW_INLINE_KEYBOARD = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [BACK_TO_STUDENT_HW_OPTIONS_MENU_INLINE_BUTTON]
-    ]
-)
-
-BACK_TO_ACTUAL_HOMEWORK_INLINE_KEYBOARD = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [InlineKeyboardButton(text="Назад", callback_data="back_to_actual_hw_dates")]
     ]
 )
 
@@ -170,12 +217,12 @@ def get_variants_inline_keyboard(variants_number: int = 0) -> InlineKeyboardMark
     return builder.as_markup()
 
 
-def get_homework_dates_inline_keyboard(dates: list[str], mode: str) -> InlineKeyboardMarkup:
+def get_homework_dates_inline_keyboard(dates: list[str], mode: str, back_to: InlineKeyboardButton) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
     for date in dates:
         builder.button(text=date, callback_data=f"homework_{mode}_{date}")
 
     builder.adjust(4, repeat=True)
-    builder.row(BACK_TO_STUDENT_HW_OPTIONS_MENU_INLINE_BUTTON)
+    builder.row(back_to)
     return builder.as_markup()

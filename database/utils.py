@@ -101,7 +101,8 @@ def set_homework(session: Session, student_id: str, homework_date: datetime) -> 
 
     for mode in ("homework", "feedback", "submitted"):
         os.mkdir(_HOMEWORK_STUDENT_DATE_MODE_PATH.format(student_id, homework_date_str, mode))
-        os.mkdir(_HOMEWORK_STUDENT_DATE_MODE_IMAGES_PATH.format(student_id, homework_date_str, mode))
+        os.mkdir(_HOMEWORK_STUDENT_DATE_MODE_IMAGES_PATH.format(
+            student_id, homework_date_str, mode))
 
     session.add(Homework(
         student_id=student.id,
@@ -162,6 +163,32 @@ def set_checked_homework(session: Session, student_id: str, homework_date: datet
 @_auto_session
 def get_student(session: Session, **kwargs) -> Student | None:
     return session.query(Student).filter_by(**kwargs).first()
+
+
+def _get_student(session: Session, **kwargs) -> Student | None:
+    return session.query(Student).filter_by(**kwargs).first()
+
+
+@_catch_except()
+@_post_commit
+def update_student_name(session: Session, name: str, **kwargs) -> Student | None:
+    student = _get_student(session, **kwargs)
+    if student is None:
+        return None
+
+    student.name = name
+    return True
+
+
+@_catch_except()
+@_post_commit
+def update_student_surname(session: Session, surname: str, **kwargs) -> Student | None:
+    student = _get_student(session, **kwargs)
+    if student is None:
+        return None
+
+    student.surname = surname
+    return True
 
 
 def check_student_exists(**kwargs) -> bool:

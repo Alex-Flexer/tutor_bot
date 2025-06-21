@@ -45,4 +45,4 @@ async def process_i_am(callback: CallbackQuery) -> None:
 
 @form_router.message()
 async def process_unknown_command(message: Message):
-    await message.answer()
+    await message.delete()
