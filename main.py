@@ -9,7 +9,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand
 
-from routers import common_router, student_router
+from routers import common_router, student_router, tutor_router
 
 
 BOT_COMMANDS = [
@@ -20,7 +20,7 @@ BOT_COMMANDS = [
 
 
 config = dotenv_values(".env")
-TOKEN = config["TOKEN"]
+TOKEN = config["MAIN_BOT_TOKEN"]
 
 
 async def main():
@@ -29,6 +29,7 @@ async def main():
     await bot.set_my_commands(commands=BOT_COMMANDS)
 
     dp = Dispatcher()
+    dp.include_router(tutor_router)
     dp.include_router(student_router)
     dp.include_router(common_router)
 

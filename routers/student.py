@@ -6,7 +6,6 @@ from datetime import datetime
 
 from aiogram import Router, F, html
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.media_group import MediaGroupBuilder
 from aiogram.types import (
     Message,
@@ -15,9 +14,11 @@ from aiogram.types import (
     CallbackQuery,
     InputMediaPhoto
 )
+from aiogram.exceptions import TelegramBadRequest
 
-from utils import keyboards, captions, PreparationTypes, ExamTypes
+from utils import keyboards as kb, captions, PreparationTypes, ExamTypes
 from database import utils as db_utils
+from routers.utils import StudentForm, save_last_message
 
 
 def get_tasks_number(exam_type: ExamTypes, variant_idx: int = 0) -> int:
@@ -52,13 +53,6 @@ with open("answers.json", 'r', encoding='utf-8') as file:
     ANSWERS: dict[str, list[list[str]]] = json.load(file)
 
 
-class Form(StatesGroup):
-    solving_tasks = State()
-    uploading_hw = State()
-    setting_name = State()
-    setting_surname = State()
-
-
 form_router = Router()
 
 # ======================================================================
@@ -74,7 +68,11 @@ async def show_results(message: Message, state: FSMContext) -> None:
     preparation_type = data["preparation_type"]
     exam_type = data["exam_type"]
 
-    task_idx = data["task_idx"]if preparation_type == PreparationTypes.variants else data["line_idx"]
+    task_idx = (
+        data["task_idx"]
+        if preparation_type == PreparationTypes.variants
+        else data["line_idx"]
+    )
 
     if task_idx < 5 and exam_type == ExamTypes.oge:
         task_img = data["task_img"]
@@ -100,11 +98,11 @@ async def show_results(message: Message, state: FSMContext) -> None:
     text += "\n" + captions.YOUR_RESULT.format(cnt_right_solutions, len(student_answers))
 
     keyboard = (
-        keyboards.EXAM_TYPE_INLINE_KEYBOARD if len(student_answers) != len(right_answers)
+        kb.EXAM_TYPE_INLINE_KEYBOARD if len(student_answers) != len(right_answers)
         else (
-            keyboards.EGE_INLINE_KEYBOARD
+            kb.EGE_INLINE_KEYBOARD
             if exam_type == ExamTypes.ege
-            else keyboards.OGE_INLINE_KEYBOARD)
+            else kb.OGE_INLINE_KEYBOARD)
     )
 
     if cnt_right_solutions == len(right_answers):
@@ -151,7 +149,7 @@ async def show_variant_task(message: Message, state: FSMContext) -> None:
     last_msg = await message.answer_photo(
         photo=photo,
         caption=caption,
-        reply_markup=keyboards.STOP_TEST_INLINE_KEYBOARD
+        reply_markup=kb.STOP_TEST_INLINE_KEYBOARD
     )
 
     await state.update_data(last_msg=last_msg)
@@ -180,7 +178,7 @@ async def show_line_task(message: Message, state: FSMContext) -> None:
         last_msg = await message.answer_photo(
             photo=photo,
             caption=caption,
-            reply_markup=keyboards.STOP_TEST_INLINE_KEYBOARD
+            reply_markup=kb.STOP_TEST_INLINE_KEYBOARD
         )
     else:
         last_msg = data["last_msg"]
@@ -193,7 +191,7 @@ async def show_line_task(message: Message, state: FSMContext) -> None:
 
         last_msg = await last_msg.edit_media(
             InputMediaPhoto(media=photo, caption=caption),
-            reply_markup=keyboards.STOP_TEST_INLINE_KEYBOARD
+            reply_markup=kb.STOP_TEST_INLINE_KEYBOARD
         )
 
     await state.update_data(last_msg=last_msg)
@@ -207,15 +205,19 @@ async def show_task(message: Message, state: FSMContext) -> None:
 
 
 @form_router.callback_query(F.data == "student_exams")
-async def process_student_exams(callback: CallbackQuery) -> None:
+async def process_student_exams(callback: CallbackQuery, state: FSMContext) -> None:
+    await save_last_message(callback.message, state)
+
     await callback.message.edit_text(
         text=captions.CHOOSE_EXAM_TYPE,
-        reply_markup=keyboards.EXAM_TYPE_INLINE_KEYBOARD
+        reply_markup=kb.EXAM_TYPE_INLINE_KEYBOARD
     )
 
 
 @form_router.callback_query(F.data.startswith("select_exam_"))
 async def process_exam_choice(callback: CallbackQuery, state: FSMContext) -> None:
+    await save_last_message(callback.message, state)
+
     exam_type = (
         ExamTypes.ege
         if callback.data.removeprefix("select_exam_") == ExamTypes.ege.value
@@ -226,7 +228,7 @@ async def process_exam_choice(callback: CallbackQuery, state: FSMContext) -> Non
 
     await callback.message.edit_text(
         text=captions.CHOOSE_PREPARATION_TYPE,
-        reply_markup=keyboards.PREPARATION_TYPE_INLINE_KEYBOARD
+        reply_markup=kb.PREPARATION_TYPE_INLINE_KEYBOARD
     )
 
     await callback.answer()
@@ -234,6 +236,8 @@ async def process_exam_choice(callback: CallbackQuery, state: FSMContext) -> Non
 
 @form_router.callback_query(F.data.startswith("preparation_type_"))
 async def process_preparation_type(callback: CallbackQuery, state: FSMContext) -> None:
+    await save_last_message(callback.message, state)
+
     preparation_type = PreparationTypes[callback.data.removeprefix("preparation_type_")]
 
     exam_type = await state.get_value("exam_type")
@@ -241,17 +245,17 @@ async def process_preparation_type(callback: CallbackQuery, state: FSMContext) -
     if exam_type is None:
         await callback.message.edit_text(
             captions.CHOOSE_EXAM_TYPE,
-            reply_markup=keyboards.EXAM_TYPE_INLINE_KEYBOARD
+            reply_markup=kb.EXAM_TYPE_INLINE_KEYBOARD
         )
     else:
         new_keyboard, new_text = (
             (
-                keyboards.get_variants_inline_keyboard(get_variants_number(exam_type)),
+                kb.get_variants_inline_keyboard(get_variants_number(exam_type)),
                 captions.CHOOSE_VARIANT_NUMBER
             )
             if preparation_type == PreparationTypes.variants
             else (
-                keyboards.get_lines_inline_keyboard(get_tasks_number(exam_type)),
+                kb.get_lines_inline_keyboard(get_tasks_number(exam_type)),
                 captions.CHOOSE_LINE_NUMBER
             )
         )
@@ -265,6 +269,8 @@ async def process_preparation_type(callback: CallbackQuery, state: FSMContext) -
 
 @form_router.callback_query(F.data.startswith("variant_"))
 async def process_variant_number(callback: CallbackQuery, state: FSMContext) -> None:
+    await save_last_message(callback.message, state)
+
     variant_idx = int(callback.data.removeprefix("variant_"))
     message = callback.message
 
@@ -274,7 +280,7 @@ async def process_variant_number(callback: CallbackQuery, state: FSMContext) -> 
         answers=[]
     )
 
-    await state.set_state(Form.solving_tasks)
+    await state.set_state(StudentForm.solving_tasks)
     pre_text = await message.answer(captions.VARIANT_NUMBER.format(variant_idx), reply_markup=ReplyKeyboardRemove())
     await state.update_data(pre_text=pre_text)
 
@@ -286,12 +292,14 @@ async def process_variant_number(callback: CallbackQuery, state: FSMContext) -> 
 
 @form_router.callback_query(F.data.startswith("line_"))
 async def process_line_number(callback: CallbackQuery, state: FSMContext) -> None:
+    await save_last_message(callback.message, state)
+
     line_idx = int(callback.data.removeprefix("line_"))
     await state.update_data(line_idx=line_idx)
 
     await callback.message.edit_text(
         text=captions.CHOOSE_TASKS_NUMBER,
-        reply_markup=keyboards.TASKS_NUMBER_INLINE_KEYBOARD
+        reply_markup=kb.TASKS_NUMBER_INLINE_KEYBOARD
     )
 
     await callback.answer()
@@ -299,6 +307,8 @@ async def process_line_number(callback: CallbackQuery, state: FSMContext) -> Non
 
 @form_router.callback_query(F.data.startswith("tasks_"))
 async def process_tasks_number(callback: CallbackQuery, state: FSMContext) -> None:
+    await save_last_message(callback.message, state)
+
     tasks_number = int(callback.data.removeprefix("tasks_"))
     line_idx = await state.get_value("line_idx")
 
@@ -312,7 +322,7 @@ async def process_tasks_number(callback: CallbackQuery, state: FSMContext) -> No
         answers=[]
     )
 
-    await state.set_state(Form.solving_tasks)
+    await state.set_state(StudentForm.solving_tasks)
     pre_text = await message.answer(
         text=captions.LINE_NUMBER.format(line_idx + 1),
         reply_markup=ReplyKeyboardRemove()
@@ -325,7 +335,7 @@ async def process_tasks_number(callback: CallbackQuery, state: FSMContext) -> No
     await callback.answer()
 
 
-@form_router.message(Form.solving_tasks)
+@form_router.message(StudentForm.solving_tasks)
 async def process_answer_task(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
 
@@ -358,14 +368,14 @@ async def process_answer_task(message: Message, state: FSMContext) -> None:
         await show_task(message, state)
 
 
-@form_router.callback_query(Form.solving_tasks, F.data.contains("test_stop"))
+@form_router.callback_query(StudentForm.solving_tasks, F.data.contains("test_stop"))
 async def process_stop(callback: CallbackQuery, state: FSMContext) -> None:
     if await state.get_value("variant_idx") is not None:
         await show_results(callback.message, state)
     else:
         await callback.message.answer(
             text=captions.TEST_STOPPED,
-            reply_markup=keyboards.EXAM_TYPE_INLINE_KEYBOARD
+            reply_markup=kb.EXAM_TYPE_INLINE_KEYBOARD
         )
 
     await state.clear()
@@ -380,23 +390,29 @@ async def process_stop(callback: CallbackQuery, state: FSMContext) -> None:
 
 
 @form_router.callback_query(F.data == "student_hw")
-async def process_student_hw(callback: CallbackQuery) -> None:
+async def process_student_hw(callback: CallbackQuery, state: FSMContext) -> None:
+    await save_last_message(callback.message, state)
+
     await callback.message.edit_text(
         text=captions.CHOOSE_OPTION,
-        reply_markup=keyboards.STUDENT_HW_INLINE_KEYBOARD
+        reply_markup=kb.STUDENT_HW_INLINE_KEYBOARD
     )
 
 
 @form_router.callback_query(F.data == "student_my_hw")
-async def process_student_my_hw(callback: CallbackQuery) -> None:
+async def process_student_my_hw(callback: CallbackQuery, state: FSMContext) -> None:
+    await save_last_message(callback.message, state)
+
     await callback.message.edit_text(
         text=captions.CHOOSE_OPTION,
-        reply_markup=keyboards.STUDENT_HW_OPTIONS_INLINE_KEYBOARD
+        reply_markup=kb.STUDENT_HW_OPTIONS_INLINE_KEYBOARD
     )
 
 
 @form_router.callback_query(F.data.in_(("student_hw_checked", "student_hw_actual")))
-async def process_student_hw_checked(callback: CallbackQuery) -> None:
+async def process_student_hw_checked(callback: CallbackQuery, state: FSMContext) -> None:
+    await save_last_message(callback.message, state)
+
     mode = callback.data.removeprefix("student_hw_") == "checked"
 
     telegram_id = callback.from_user.id
@@ -411,23 +427,24 @@ async def process_student_hw_checked(callback: CallbackQuery) -> None:
 
         await callback.message.edit_text(
             text=captions.EMPTY,
-            reply_markup=keyboards.BACK_TO_STUDENT_HW_OPTIONS_INLINE_KEYBOARD
+            reply_markup=kb.BACK_INLINE_KEYBOARD
         )
     else:
         dates = db_utils.homeworks_to_str_dates(homeworks)
 
         await callback.message.edit_text(
             text=captions.CHOOSE_DATE,
-            reply_markup=keyboards.get_homework_dates_inline_keyboard(
+            reply_markup=kb.get_homework_dates_inline_keyboard(
                 dates=dates,
-                mode=("feedback" if mode else "homework"),
-                back_to=keyboards.BACK_TO_STUDENT_HW_OPTIONS_INLINE_BUTTON
+                mode=("feedback" if mode else "homework")
             )
         )
 
 
 @form_router.callback_query(F.data.startswith("homework_"))
 async def process_student_homework(callback: CallbackQuery, state: FSMContext) -> None:
+    await save_last_message(callback.message, state)
+
     mode, date = callback.data.removeprefix("homework_").split("_")
     telegram_id = callback.from_user.id
 
@@ -437,9 +454,9 @@ async def process_student_homework(callback: CallbackQuery, state: FSMContext) -
     if mode == "submit":
         submit_text_message = await callback.message.edit_text(
             text=captions.SUBMIT_HOMEWORK,
-            reply_markup=keyboards.BACK_TO_SUBMIT_INLINE_KEYBOARD
+            reply_markup=kb.BACK_INLINE_KEYBOARD
         )
-        await state.set_state(Form.uploading_hw)
+        await state.set_state(StudentForm.uploading_hw)
         await state.update_data(hw_date=date, submit_text_message=submit_text_message)
     else:
         photos = os.listdir(db_utils.IMAGES_PATH.format(student_id, date, mode))
@@ -447,70 +464,106 @@ async def process_student_homework(callback: CallbackQuery, state: FSMContext) -
         with open(db_utils.COMMENT_PATH.format(student_id, date, mode), 'r', encoding='utf-8') as comment_file:
             comment = comment_file.read()
 
-        caption = captions.TUTOR_COMMENT.format(
-            comment) if comment else captions.EMPTY_TUTOR_COMMENT
+        if not comment:
+            comment = captions.EMPTY_TUTOR_COMMENT
 
-        media_builder = MediaGroupBuilder(caption=caption)
+        caption = captions.TUTOR_COMMENT.format(comment)
 
-        for photo in photos:
-            media_builder.add(
-                type="photo",
-                media=FSInputFile(os.path.join(
-                    db_utils.IMAGES_PATH.format(student_id, date, mode), photo))
+        if photos:
+            media_builder = MediaGroupBuilder(caption=caption)
+            for photo in photos:
+                media_builder.add(
+                    type="photo",
+                    media=FSInputFile(os.path.join(
+                        db_utils.IMAGES_PATH.format(student_id, date, mode), photo))
+                )
+
+            media_group = await callback.message.answer_media_group(media=media_builder.build())
+            await state.update_data(media_group=media_group)
+
+            await callback.message.answer(
+                text=captions.CHOOSE_OPTION,
+                reply_markup=kb.BACK_INLINE_KEYBOARD
             )
-
-        media_group = await callback.message.answer_media_group(media=media_builder.build())
-        await state.update_data(media_group=media_group)
-
-        await callback.message.answer(
-            text=captions.CHOOSE_OPTION,
-            reply_markup=getattr(keyboards, f"BACK_TO_{mode.upper()}_INLINE_KEYBOARD")
-        )
-        await callback.message.delete()
+            await callback.message.delete()
+        else:
+            await callback.message.edit_text(
+                text=caption,
+                reply_markup=kb.BACK_INLINE_KEYBOARD
+            )
 
     await callback.answer()
 
 
-@form_router.message(Form.uploading_hw)
+@form_router.message(StudentForm.uploading_hw)
 async def process_upload_hw(message: Message, state: FSMContext) -> None:
     student_id = db_utils.get_student(telegram_id=message.from_user.id).student_id
     hw_date = await state.get_value("hw_date")
 
     if message.photo is not None:
-        image_path = os.path.join(db_utils.IMAGES_PATH.format(
-            student_id, hw_date, "submitted"), f"{secrets.token_urlsafe(5)}.png")
+        image_path = os.path.join(
+            db_utils.IMAGES_PATH.format(student_id, hw_date, "submitted"),
+            f"{secrets.token_urlsafe(5)}.png"
+        )
+
         await message.bot.download(
             file=message.photo[-1].file_id,
             destination=image_path
         )
 
-    comment = message.caption if message.caption is not None else message.text
     comment = (
-        "Ученик не оставит комментария к данному домашнему заданию."
-        if comment == "."
-        else comment
+        message.caption
+        if message.caption is not None
+        else (
+            ""
+            if message.text is None
+            else message.text
+        )
     )
 
-    with open(db_utils.COMMENT_PATH.format(student_id, hw_date, "submitted"), 'w', encoding="utf-8") as comment_file:
+    with open(
+        file=db_utils.COMMENT_PATH.format(student_id, hw_date, "submitted"),
+        mode='a',
+        encoding="utf-8"
+    ) as comment_file:
         comment_file.write(comment)
 
     hw_submitted = db_utils.set_submitted_homework(
-        student_id, datetime.strptime(hw_date, "%d.%m.%Y"))
+        student_id=student_id,
+        homework_date=datetime.strptime(hw_date, "%d.%m.%Y")
+    )
 
     submit_text_message = await state.get_value("submit_text_message")
-    if submit_text_message is not None:
-        await submit_text_message.delete()
-
-    await message.answer(
+    caption = (
         captions.HW_SUBMITTED_SUCCESS
         if hw_submitted
-        else captions.HW_SUBMITTED_FAILED,
-        reply_markup=keyboards.BACK_TO_SUBMIT_INLINE_KEYBOARD
+        else captions.HW_SUBMITTED_FAILED
     )
+
+    method = (
+        message.answer
+        if submit_text_message is None
+        else submit_text_message.edit_text
+    )
+
+    try:
+        submit_text_message = await method(
+            text=caption,
+            reply_markup=kb.BACK_INLINE_KEYBOARD
+        )
+    except TelegramBadRequest:
+        ...
+    finally:
+        await state.update_data(submit_text_message=submit_text_message)
+
+        await state.set_state()
+        await message.delete()
 
 
 @form_router.callback_query(F.data.startswith("student_submit_hw"))
-async def process_set_hw(callback: CallbackQuery) -> None:
+async def process_set_hw(callback: CallbackQuery, state: FSMContext) -> None:
+    await save_last_message(callback.message, state)
+
     dates = db_utils.get_homeworks(
         submitted=False,
         checked=False,
@@ -521,90 +574,11 @@ async def process_set_hw(callback: CallbackQuery) -> None:
 
     await callback.message.edit_text(
         text=(captions.CHOOSE_DATE if dates_str else captions.EMPTY),
-        reply_markup=keyboards.get_homework_dates_inline_keyboard(
+        reply_markup=kb.get_homework_dates_inline_keyboard(
             dates=dates_str,
-            mode="submit",
-            back_to=keyboards.BACK_TO_STUDENT_HW_INLINE_BUTTON
+            mode="submit"
         )
     )
-    await callback.answer()
-
-
-@form_router.callback_query(F.data.startswith("back_to_"))
-async def process_back_to(callback: CallbackQuery, state: FSMContext) -> None:
-    exam_type = await state.get_value("exam_type")
-    previous_keyboard_name = callback.data.removeprefix("back_to_").upper()
-
-    if exam_type is None and previous_keyboard_name == "LINE":
-        text, keyboard = (
-            (
-                captions.CHOOSE_OPTION,
-                keyboards.STUDENT_MENU_INLINE_KEYBOARD
-            )
-            if callback.message.reply_markup.dict() == keyboards.EXAM_TYPE_INLINE_KEYBOARD.dict()
-            else (
-                captions.CHOOSE_EXAM_TYPE,
-                keyboards.EXAM_TYPE_INLINE_KEYBOARD
-            )
-        )
-    elif previous_keyboard_name.endswith("_HW_DATES"):
-        media_group = await state.get_value("media_group")
-        if media_group is not None:
-            for media in media_group:
-                await media.delete()
-
-        mode = previous_keyboard_name.removesuffix("_HW_DATES").lower()
-        telegram_id = callback.from_user.id
-        dates = db_utils.get_homeworks(
-            telegram_id=telegram_id,
-            submitted=(mode == "feedback"),
-            checked=(mode == "feedback")
-        )
-
-        await state.set_state()
-
-        dates_str = db_utils.homeworks_to_str_dates(dates)
-
-        keyboard = keyboards.get_homework_dates_inline_keyboard(
-            dates=dates_str,
-            mode=mode,
-            back_to=(
-                keyboards.BACK_TO_STUDENT_HW_OPTIONS_INLINE_BUTTON
-                if mode != "submit"
-                else keyboards.BACK_TO_STUDENT_HW_INLINE_BUTTON
-            )
-        )
-        text = captions.CHOOSE_DATE
-    else:
-        keyboard, text = (
-            (
-                keyboards.get_lines_inline_keyboard(get_tasks_number(exam_type)),
-                captions.CHOOSE_PREPARATION_TYPE
-            )
-            if previous_keyboard_name == "LINE"
-            else (
-                (tmp_keyboard := getattr(keyboards, f"{previous_keyboard_name}_INLINE_KEYBOARD")),
-                captions.keyboard2captions[tmp_keyboard]
-            )
-        )
-
-    if text == captions.PROFILE_TEXT:
-        telegram_id = callback.from_user.id
-        student = db_utils.get_student(telegram_id=telegram_id)
-        if student is None:
-            text = captions.STUDENT_NOT_FOUND
-            keyboard = keyboards.BACK_TO_STUDENT_INLINE_KEYBOARD
-        else:
-            name = student.name
-            surname = student.surname
-            student_id = student.student_id
-            text = text.format(name, surname, html.code(student_id))
-
-    await callback.message.edit_text(
-        text=text,
-        reply_markup=keyboard
-    )
-
     await callback.answer()
 
 
@@ -614,7 +588,9 @@ async def process_back_to(callback: CallbackQuery, state: FSMContext) -> None:
 
 
 @form_router.callback_query(F.data == "student_profile")
-async def process_student_profile(callback: CallbackQuery) -> None:
+async def process_student_profile(callback: CallbackQuery, state: FSMContext) -> None:
+    await save_last_message(callback.message, state)
+
     telegram_id = callback.from_user.id
     student = db_utils.get_student(telegram_id=telegram_id)
 
@@ -627,7 +603,7 @@ async def process_student_profile(callback: CallbackQuery) -> None:
     if not student_added:
         await callback.message.edit_text(
             text=captions.STUDENT_NOT_FOUND,
-            reply_markup=keyboards.BACK_TO_STUDENT_INLINE_KEYBOARD
+            reply_markup=kb.BACK_INLINE_KEYBOARD
         )
     else:
         name = student.name
@@ -636,7 +612,7 @@ async def process_student_profile(callback: CallbackQuery) -> None:
 
         await callback.message.edit_text(
             text=captions.PROFILE_TEXT.format(name, surname, html.code(student_id)),
-            reply_markup=keyboards.STUDENT_PROFILE_INLINE_KEYBOARD
+            reply_markup=kb.STUDENT_PROFILE_INLINE_KEYBOARD
         )
 
     await callback.answer()
@@ -644,9 +620,11 @@ async def process_student_profile(callback: CallbackQuery) -> None:
 
 @form_router.callback_query(F.data == "edit_student_profile")
 async def process_edit_student_profile(callback: CallbackQuery, state: FSMContext) -> None:
+    await save_last_message(callback.message, state)
+
     edit_student_profile_msg = await callback.message.edit_text(
         text=captions.EDIT_STUDENT_PROFILE,
-        reply_markup=keyboards.EDIT_STUDENT_PROFILE_INLINE_KEYBOARD
+        reply_markup=kb.EDIT_STUDENT_PROFILE_INLINE_KEYBOARD
     )
 
     await state.update_data(edit_student_profile_msg=edit_student_profile_msg)
@@ -656,18 +634,20 @@ async def process_edit_student_profile(callback: CallbackQuery, state: FSMContex
 
 @form_router.callback_query(F.data.startswith("edit_student_"))
 async def process_edit_student_data(callback: CallbackQuery, state: FSMContext) -> None:
+    await save_last_message(callback.message, state)
+
     await callback.message.edit_text(
         text=captions.EDIT_STUDENT_NAME,
-        reply_markup=keyboards.BACK_TO_EDIT_STUDENT_PROFILE_INLINE_KEYBOARD
+        reply_markup=kb.BACK_INLINE_KEYBOARD
     )
 
     mode = callback.data.removeprefix("edit_student_")
-    await state.set_state(getattr(Form, f"setting_{mode}"))
+    await state.set_state(getattr(StudentForm, f"setting_{mode}"))
 
     await callback.answer()
 
 
-@form_router.message(Form.setting_name)
+@form_router.message(StudentForm.setting_name)
 async def process_edit_student_name(message: Message, state: FSMContext) -> None:
     telegram_id = message.from_user.id
     edit_student_profile_msg = await state.get_value("edit_student_profile_msg")
@@ -688,11 +668,13 @@ async def process_edit_student_name(message: Message, state: FSMContext) -> None
 
     await method(
         text=text,
-        reply_markup=keyboards.BACK_TO_EDIT_STUDENT_PROFILE_INLINE_KEYBOARD
+        reply_markup=kb.BACK_INLINE_KEYBOARD
     )
 
+    await state.set_state()
 
-@form_router.message(Form.setting_surname)
+
+@form_router.message(StudentForm.setting_surname)
 async def process_edit_student_surname(message: Message, state: FSMContext) -> None:
     telegram_id = message.from_user.id
     edit_student_profile_msg = await state.get_value("edit_student_profile_msg")
@@ -713,5 +695,7 @@ async def process_edit_student_surname(message: Message, state: FSMContext) -> N
 
     await method(
         text=text,
-        reply_markup=keyboards.BACK_TO_EDIT_STUDENT_PROFILE_INLINE_KEYBOARD
+        reply_markup=kb.BACK_INLINE_KEYBOARD
     )
+
+    await state.set_state()

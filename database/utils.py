@@ -87,6 +87,13 @@ def set_homework(session: Session, student_id: str, homework_date: datetime) -> 
 
     homework_date = datetime.combine(homework_date.date(), time.min)
     homework_date_str = homework_date.date().strftime("%d.%m.%Y")
+    
+    print(homework_date_str)
+
+    session.add(Homework(
+        student_id=student.id,
+        date_setting_homework=homework_date
+    ))
 
     if not os.path.exists(_BASIC_HOMEWORK_PATH):
         os.mkdir(_BASIC_HOMEWORK_PATH)
@@ -94,20 +101,19 @@ def set_homework(session: Session, student_id: str, homework_date: datetime) -> 
     if not os.path.exists(_STUDENT_HOMEWORK_PATH.format(student_id)):
         os.mkdir(_STUDENT_HOMEWORK_PATH.format(student_id))
 
-    if os.path.exists(_HOMEWORK_STUDENT_DATE_PATH.format(student_id, homework_date_str)):
-        return False
+    if not os.path.exists(_HOMEWORK_STUDENT_DATE_PATH.format(student_id, homework_date_str)):
+        os.mkdir(_HOMEWORK_STUDENT_DATE_PATH.format(student_id, homework_date_str))
+        print(_HOMEWORK_STUDENT_DATE_PATH.format(student_id, homework_date_str))
 
-    os.mkdir(_HOMEWORK_STUDENT_DATE_PATH.format(student_id, homework_date_str))
+        for mode in ("homework", "feedback", "submitted"):
+            os.mkdir(_HOMEWORK_STUDENT_DATE_MODE_PATH.format(student_id, homework_date_str, mode))
+            os.mkdir(_HOMEWORK_STUDENT_DATE_MODE_IMAGES_PATH.format(student_id, homework_date_str, mode))
+            open(
+                file=COMMENT_PATH.format(student_id, homework_date_str, mode),
+                mode='x',
+                encoding='utf-8'
+            ).close()
 
-    for mode in ("homework", "feedback", "submitted"):
-        os.mkdir(_HOMEWORK_STUDENT_DATE_MODE_PATH.format(student_id, homework_date_str, mode))
-        os.mkdir(_HOMEWORK_STUDENT_DATE_MODE_IMAGES_PATH.format(
-            student_id, homework_date_str, mode))
-
-    session.add(Homework(
-        student_id=student.id,
-        date_setting_homework=homework_date
-    ))
     return True
 
 
@@ -198,6 +204,16 @@ def check_student_exists(**kwargs) -> bool:
 @_auto_session
 def get_unpassed_lessons(session: Session) -> list[Lesson] | None:
     return session.query(Lesson).filter_by(passed=False).all()
+
+
+@_auto_session
+def get_all_students(session: Session) -> list[Student]:
+    return [student.student_id for student in session.query(Student).all()]
+
+
+@_auto_session
+def check_toek(session: Session) -> list[Student]:
+    return [student.student_id for student in session.query(Lesson).filter_by(passed=False).all()]
 
 
 @_catch_except(default=[])
