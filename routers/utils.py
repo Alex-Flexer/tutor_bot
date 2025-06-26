@@ -10,11 +10,16 @@ from utils import captions, keyboards as kb
 
 ENV_PATH = ".env"
 CACHE_INTERVAL_EXPIRE = timedelta(days=1)
+EPS_MSG_TIME_INTERVAL = timedelta(seconds=3)
 
 
 class TutorForm(StatesGroup):
     inputting_sk = State()
+    setting_student_id = State()
+    setting_student_name = State()
+    setting_student_surname = State()
     checking_hw = State()
+    uploading_hw = State()
     updating_probe = State()
 
 
@@ -29,7 +34,7 @@ async def save_last_message(message: Message, state: FSMContext):
     msg_history: deque = await state.get_value("msg_history", deque())
 
     prev_keyboard = message.reply_markup
-    prev_text = message.text
+    prev_text = message.html_text
 
     msg_history.append((prev_text, prev_keyboard))
 

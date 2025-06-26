@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup
@@ -6,6 +8,7 @@ from aiogram.types import (
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from database import utils as db_utils
+
 
 
 # ======================================================================
@@ -162,8 +165,17 @@ def get_homework_dates_inline_keyboard(dates: list[str], mode: str) -> InlineKey
 TUTOR_OPTION_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="ДЗ", callback_data="tutor_hw"),
-         InlineKeyboardButton(text="Добавить ученика", callback_data="tutor_add_student")],
-        [InlineKeyboardButton(text="Обновить результаты пробника", callback_data="tutor_update_probe")],
+         InlineKeyboardButton(text="Ученик", callback_data="tutor_student_options")],
+        [InlineKeyboardButton(text="Обновить результаты пробника",
+                              callback_data="tutor_update_probe")],
+        [BACK_INLINE_BUTTON]
+    ]
+)
+
+TUTOR_STUDENT_OPTIONS_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Удалить ученика", callback_data="tutor_delete_student"),
+         InlineKeyboardButton(text="Редактировать профиль ученика", callback_data="tutor_edit_student_profile")],
         [BACK_INLINE_BUTTON]
     ]
 )
@@ -177,6 +189,15 @@ TUTOR_HW_INLINE_KEYBOARD = InlineKeyboardMarkup(
     ]
 )
 
+TUTOR_EDIT_STUDENT_PROFILE_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Имя", callback_data="tutor_edit_student_name"),
+         InlineKeyboardButton(text="Фамилия", callback_data="tutor_edit_student_surname")],
+        [BACK_INLINE_BUTTON]
+    ]
+)
+
+
 def get_students_inline_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
@@ -184,8 +205,30 @@ def get_students_inline_keyboard() -> InlineKeyboardMarkup:
         builder.button(text=students_id, callback_data=f"tutor_select_{students_id}")
 
     builder.adjust(4, repeat=True)
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Добавить ученика",
+            callback_data="tutor_add_student"
+        )
+    )
     builder.row(BACK_INLINE_BUTTON)
     return builder.as_markup()
+
+
+def get_dates_in_month_inline_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    today = datetime.today()
+    for i in range(30):
+        date_str = (today + timedelta(days=i)).strftime("%d.%m.%Y")
+        builder.button(text=date_str, callback_data=f"tutor_set_hw_{date_str}")
+
+    builder.adjust(5, repeat=True)
+    builder.row(BACK_INLINE_BUTTON)
+
+    return builder.as_markup()
+
 
 # ======================================================================
 # -----------------------------PARENT BLOCK-----------------------------

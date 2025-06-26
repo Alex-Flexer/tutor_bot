@@ -43,6 +43,7 @@ async def process_i_am(callback: CallbackQuery, state: FSMContext) -> None:
 
     role = callback.data.lstrip("i_am_")
     message = callback.message
+    print(role)
 
     if role == "tutor":
         datetime_allowed = await state.get_value("tutor_allowed")
@@ -55,31 +56,31 @@ async def process_i_am(callback: CallbackQuery, state: FSMContext) -> None:
             )
             await state.set_state(TutorForm.inputting_sk)
             await state.update_data(last_msg=last_msg)
+
         else:
-            flag = True
+            await message.edit_text(
+                text=captions.CHOOSE_STUDENT,
+                reply_markup=kb.get_students_inline_keyboard()
+            )
 
-            if role == "student":
-                telegram_id = callback.from_user.id
-                flag = db_utils.check_student_exists(telegram_id=telegram_id)
+    elif role == "student":
+        telegram_id = callback.from_user.id
 
-                if not flag:
-                    await message.edit_text(
-                        text=captions.NOT_STUDENT,
-                        keyboard=kb.BACK_INLINE_KEYBOARD
-                    )
-            
-            if flag:
-                await message.edit_text(
-                    text=captions.CHOOSE_STUDENT,
-                    reply_markup=kb.get_students_inline_keyboard()
-                )
+        if not db_utils.check_student_exists(telegram_id=telegram_id):
+            await message.edit_text(
+                text=captions.NOT_STUDENT,
+                reply_markup=kb.BACK_INLINE_KEYBOARD
+            )
+        else:
+            await message.edit_text(
+                text=captions.CHOOSE_STUDENT,
+                reply_markup=kb.STUDENT_MENU_INLINE_KEYBOARD
+            )
 
     else:
-        keyboard = getattr(kb, f"{role.upper()}_MENU_INLINE_KEYBOARD")
-
         await message.edit_text(
             text=captions.CHOOSE_OPTION,
-            reply_markup=keyboard
+            reply_markup=kb.PARENT_MENU_INLINE_KEYBOARD
         )
 
     await callback.answer()

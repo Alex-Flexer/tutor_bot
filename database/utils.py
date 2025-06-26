@@ -1,10 +1,12 @@
 from datetime import datetime, time
 import secrets
 import os
+import shutil
 
 from sqlalchemy.orm import Session
 
 from .models import Lesson, Student, Homework, engine
+
 
 _BASIC_HOMEWORK_PATH = "./database/homeworks"
 
@@ -64,7 +66,7 @@ def pass_lesson(session: Session, email: str, telegram_username: str) -> bool:
 
 @_catch_except()
 @_post_commit
-def add_student(session: Session, name: str | None, surname: str | None, telegram_id: int) -> bool:
+def add_student(session: Session, telegram_id: int, name: str | None = None, surname: str | None = None) -> bool:
     name = "undefined" if name is None else name
     surname = "undefined" if surname is None else surname
 
@@ -80,6 +82,22 @@ def add_student(session: Session, name: str | None, surname: str | None, telegra
 
 @_catch_except()
 @_post_commit
+def delete_student(session: Session, student_id: str) -> bool:
+    student = get_student(student_id=student_id)
+    if student is not None:
+        session.query(Homework).filter_by(student_id=student.id).delete()
+        
+        student_dir_path = _STUDENT_HOMEWORK_PATH.format(student_id)
+        if os.path.exists(student_dir_path):
+            shutil.rmtree(student_dir_path)
+        
+        session.query(Student).filter_by(student_id=student_id).delete()
+
+    return True
+
+
+@_catch_except()
+@_post_commit
 def set_homework(session: Session, student_id: str, homework_date: datetime) -> bool:
     student = get_student(student_id=student_id)
     if student is None:
@@ -87,8 +105,6 @@ def set_homework(session: Session, student_id: str, homework_date: datetime) -> 
 
     homework_date = datetime.combine(homework_date.date(), time.min)
     homework_date_str = homework_date.date().strftime("%d.%m.%Y")
-    
-    print(homework_date_str)
 
     session.add(Homework(
         student_id=student.id,
@@ -103,7 +119,6 @@ def set_homework(session: Session, student_id: str, homework_date: datetime) -> 
 
     if not os.path.exists(_HOMEWORK_STUDENT_DATE_PATH.format(student_id, homework_date_str)):
         os.mkdir(_HOMEWORK_STUDENT_DATE_PATH.format(student_id, homework_date_str))
-        print(_HOMEWORK_STUDENT_DATE_PATH.format(student_id, homework_date_str))
 
         for mode in ("homework", "feedback", "submitted"):
             os.mkdir(_HOMEWORK_STUDENT_DATE_MODE_PATH.format(student_id, homework_date_str, mode))
@@ -150,7 +165,6 @@ def set_checked_homework(session: Session, student_id: str, homework_date: datet
     student_id = get_student(student_id=student_id).id
 
     homework_date = datetime.combine(homework_date.date(), time.min)
-    print(homework_date)
 
     homework = session\
         .query(Homework)\
@@ -237,8 +251,6 @@ def get_homeworks(
     if checked is not None:
         sub_kwargs.update(checked=checked)
 
-    print(kwargs)
-
     return session\
         .query(Homework)\
         .filter_by(
@@ -249,3 +261,11 @@ def get_homeworks(
 
 def homeworks_to_str_dates(homeworks: list[Homework]) -> list[str]:
     return [hw.date_setting_homework.date().strftime("%d.%m.%Y") for hw in homeworks]
+
+
+def check_hw_exists(student_id: str, homework_date: datetime) -> bool:
+    homeworks: list[Homework] | None = get_homeworks(student_id=student_id)
+    if homeworks is None:
+        return False
+
+    return any(homework_date == hw.date_setting_homework for hw in homeworks)

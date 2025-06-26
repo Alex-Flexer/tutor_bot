@@ -594,16 +594,10 @@ async def process_student_profile(callback: CallbackQuery, state: FSMContext) ->
     telegram_id = callback.from_user.id
     student = db_utils.get_student(telegram_id=telegram_id)
 
-    student_added = True
-
     if student is None:
-        student_added = db_utils.add_student(name, surname, telegram_id)
-        student = db_utils.get_student(telegram_id=telegram_id)
-
-    if not student_added:
         await callback.message.edit_text(
-            text=captions.STUDENT_NOT_FOUND,
-            reply_markup=kb.BACK_INLINE_KEYBOARD
+            text=captions.CHOOSE_OPTION,
+            reply_markup=kb.MAIN_MENU_INLINE_KEYBOARD
         )
     else:
         name = student.name
@@ -615,7 +609,7 @@ async def process_student_profile(callback: CallbackQuery, state: FSMContext) ->
             reply_markup=kb.STUDENT_PROFILE_INLINE_KEYBOARD
         )
 
-    await callback.answer()
+        await callback.answer()
 
 
 @form_router.callback_query(F.data == "edit_student_profile")
