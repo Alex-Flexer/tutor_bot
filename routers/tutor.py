@@ -16,14 +16,15 @@ from aiogram.types import (
 )
 from aiogram.exceptions import TelegramBadRequest
 
-from utils import keyboards as kb, captions
-from database import utils as db_utils
-from database.models import Lesson
-from routers.utils import (
-    TutorForm, save_last_message,
-    clear_media_group, lessons_to_text, check_student_id,
+from utils import (
+    keyboards as kb, captions,
+    TutorForm,
+    save_last_message, clear_media_group,
+    lessons_to_text, check_student_id,
     ENV_PATH
 )
+from database import utils as db_utils
+from database.models import Lesson
 
 
 form_router = Router()

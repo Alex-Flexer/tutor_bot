@@ -18,9 +18,12 @@ from aiogram.types import (
 )
 from aiogram.exceptions import TelegramBadRequest
 
-from utils import keyboards as kb, captions, PreparationTypes, ExamTypes
+from utils import (
+    keyboards as kb, captions,
+    PreparationTypes, ExamTypes,
+    StudentForm, save_last_message
+)
 from database import utils as db_utils
-from routers.utils import StudentForm, save_last_message
 
 
 def get_tasks_number(exam_type: ExamTypes, variant_idx: int = 0) -> int:
