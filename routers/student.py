@@ -1,14 +1,15 @@
-import json
-import random
-import os
-import secrets
 from datetime import datetime
 from queue import deque
+import secrets
+import random
+import json
+import os
 
 from aiogram import Router, F, html
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from aiogram.utils.media_group import MediaGroupBuilder
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import (
     Message,
     ReplyKeyboardRemove,
@@ -16,14 +17,13 @@ from aiogram.types import (
     CallbackQuery,
     InputMediaPhoto
 )
-from aiogram.exceptions import TelegramBadRequest
 
+from database import utils as db_utils
 from utils import (
     keyboards as kb, captions,
     PreparationTypes, ExamTypes,
     StudentForm, save_last_message
 )
-from database import utils as db_utils
 
 
 def get_tasks_number(exam_type: ExamTypes, variant_idx: int = 0) -> int:

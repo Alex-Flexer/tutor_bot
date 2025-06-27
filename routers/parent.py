@@ -1,7 +1,7 @@
-import os
-import secrets
 from datetime import datetime
 import asyncio
+import secrets
+import os
 import re
 
 import dotenv
@@ -10,20 +10,19 @@ from aiogram import Router, F, html
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from aiogram.utils.media_group import MediaGroupBuilder
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import (
     Message,
     FSInputFile,
     CallbackQuery
 )
-from aiogram.exceptions import TelegramBadRequest
 
+from database import utils as db_utils, Lesson
 from utils import (
     keyboards as kb, captions,
     ParentForm,
     save_last_message,lessons_to_text
 )
-from database import utils as db_utils
-from database.models import Lesson
 
 form_router = Router()
 
@@ -83,7 +82,6 @@ async def process_input_sk(message: Message, state: FSMContext):
 # ======================================================================
 # -----------------------------STUDENT BLOCK----------------------------
 # ======================================================================
-
 
 @form_router.callback_query(F.data == "parent_student_info")
 async def process_student_info(callback: CallbackQuery, state: FSMContext):

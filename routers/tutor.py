@@ -1,7 +1,7 @@
-import os
-import secrets
 from datetime import datetime
+import secrets
 import asyncio
+import os
 
 import dotenv
 
@@ -9,13 +9,14 @@ from aiogram import Router, F, html
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from aiogram.utils.media_group import MediaGroupBuilder
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import (
     Message,
     FSInputFile,
     CallbackQuery
 )
-from aiogram.exceptions import TelegramBadRequest
 
+from database import utils as db_utils, Lesson
 from utils import (
     keyboards as kb, captions,
     TutorForm,
@@ -23,8 +24,6 @@ from utils import (
     lessons_to_text, check_student_id,
     ENV_PATH
 )
-from database import utils as db_utils
-from database.models import Lesson
 
 
 form_router = Router()
