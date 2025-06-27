@@ -6,6 +6,7 @@ from datetime import datetime
 
 from aiogram import Router, F, html
 from aiogram.fsm.context import FSMContext
+from aiogram.filters import StateFilter
 from aiogram.utils.media_group import MediaGroupBuilder
 from aiogram.types import (
     Message,
@@ -603,9 +604,13 @@ async def process_student_profile(callback: CallbackQuery, state: FSMContext) ->
         name = student.name
         surname = student.surname
         student_id = student.student_id
+        probe_result = student.last_probe_result
+        
+        if probe_result is None:
+            probe_result = "undefined"
 
         await callback.message.edit_text(
-            text=captions.PROFILE_TEXT.format(name, surname, html.code(student_id)),
+            text=captions.PROFILE_TEXT.format(name, surname, html.code(student_id), probe_result),
             reply_markup=kb.STUDENT_PROFILE_INLINE_KEYBOARD
         )
 
@@ -629,54 +634,32 @@ async def process_edit_student_profile(callback: CallbackQuery, state: FSMContex
 @form_router.callback_query(F.data.startswith("edit_student_"))
 async def process_edit_student_data(callback: CallbackQuery, state: FSMContext) -> None:
     await save_last_message(callback.message, state)
+    mode = callback.data.removeprefix("edit_student_")
 
     await callback.message.edit_text(
-        text=captions.EDIT_STUDENT_NAME,
+        text=getattr(captions, f"EDIT_STUDENT_{mode.upper()}"),
         reply_markup=kb.BACK_INLINE_KEYBOARD
     )
 
-    mode = callback.data.removeprefix("edit_student_")
     await state.set_state(getattr(StudentForm, f"setting_{mode}"))
 
     await callback.answer()
 
 
-@form_router.message(StudentForm.setting_name)
+@form_router.message(StateFilter(StudentForm.setting_name, StudentForm.setting_surname))
 async def process_edit_student_name(message: Message, state: FSMContext) -> None:
     telegram_id = message.from_user.id
     edit_student_profile_msg = await state.get_value("edit_student_profile_msg")
-    new_name = message.text
 
-    name_updated = db_utils.update_student_name(new_name, telegram_id=telegram_id)
+    full_state = await state.get_state()
+    mode = full_state.split('_')[-1]
 
-    text = captions.DATA_UPDATED_SUCCESS if name_updated else captions.DATA_UPDATED_FAILED
+    new_data = message.text
 
-    await message.delete()
-    await state.set_state()
+    updater = getattr(db_utils, f"update_student_{mode}")
+    data_updated = updater(new_data, telegram_id=telegram_id)
 
-    method = (
-        message.answer
-        if edit_student_profile_msg is None
-        else edit_student_profile_msg.edit_text
-    )
-
-    await method(
-        text=text,
-        reply_markup=kb.BACK_INLINE_KEYBOARD
-    )
-
-    await state.set_state()
-
-
-@form_router.message(StudentForm.setting_surname)
-async def process_edit_student_surname(message: Message, state: FSMContext) -> None:
-    telegram_id = message.from_user.id
-    edit_student_profile_msg = await state.get_value("edit_student_profile_msg")
-    new_surname = message.text
-
-    name_updated = db_utils.update_student_surname(new_surname, telegram_id=telegram_id)
-
-    text = captions.DATA_UPDATED_SUCCESS if name_updated else captions.DATA_UPDATED_FAILED
+    text = captions.DATA_UPDATED_SUCCESS if data_updated else captions.DATA_UPDATED_FAILED
 
     await message.delete()
     await state.set_state()

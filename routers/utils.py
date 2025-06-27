@@ -3,9 +3,10 @@ from queue import deque
 
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, InlineKeyboardMarkup
+from aiogram.types import Message, InlineKeyboardMarkup, CallbackQuery
 
 from utils import captions, keyboards as kb
+from database.models import Lesson
 
 
 ENV_PATH = ".env"
@@ -15,11 +16,18 @@ EPS_MSG_TIME_INTERVAL = timedelta(seconds=3)
 
 class TutorForm(StatesGroup):
     inputting_sk = State()
+
+    deleting_lesson = State()
+
     setting_student_id = State()
     setting_student_name = State()
     setting_student_surname = State()
+
+    setting_probe_result = State()
+
     checking_hw = State()
     uploading_hw = State()
+
     updating_probe = State()
 
 
@@ -65,3 +73,37 @@ async def get_previous_message(state: FSMContext) -> tuple[str, InlineKeyboardMa
         prev_msg = msg_history.pop()
         await state.update_data(msg_history=msg_history)
         return prev_msg
+
+
+async def check_student_id(
+    callback_or_message: CallbackQuery | Message,
+    state: FSMContext
+) -> int | None:
+    student_id = await state.get_value("student_id")
+    callback_mode = isinstance(callback_or_message, CallbackQuery)
+    message = callback_or_message.message if callback_mode else callback_or_message
+
+    if student_id is None:
+        await message.edit_text(
+            text=captions.CHOOSE_STUDENT,
+            reply_markup=kb.get_students_inline_keyboard()
+        )
+        if callback_mode:
+            await callback_or_message.answer()
+
+    return student_id
+
+
+def lessons_to_text(lessons: list[Lesson]) -> str:
+    lessons_str = [
+        captions.LESSON.format(
+            lesson.id,
+            lesson.date.strftime("%d.%m.%Y"),
+            lesson.email,
+            lesson.telegram_username
+        )
+        for lesson in lessons
+    ]
+
+    sep = "\n\n" + "-" * 15 + "\n\n"
+    return sep.join(lessons_str)

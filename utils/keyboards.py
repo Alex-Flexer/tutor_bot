@@ -161,21 +161,26 @@ def get_homework_dates_inline_keyboard(dates: list[str], mode: str) -> InlineKey
 # ------------------------------TUTOR BLOCK-----------------------------
 # ======================================================================
 
+TUTOR_MENU_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Ученики", callback_data="tutor_students"),
+         InlineKeyboardButton(text="Записи", callback_data="tutor_lessons")],
+        [BACK_INLINE_BUTTON]
+    ]
+)
 
 TUTOR_OPTION_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="ДЗ", callback_data="tutor_hw"),
          InlineKeyboardButton(text="Ученик", callback_data="tutor_student_options")],
-        [InlineKeyboardButton(text="Обновить результаты пробника",
-                              callback_data="tutor_update_probe")],
         [BACK_INLINE_BUTTON]
     ]
 )
 
 TUTOR_STUDENT_OPTIONS_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Удалить ученика", callback_data="tutor_delete_student"),
-         InlineKeyboardButton(text="Редактировать профиль ученика", callback_data="tutor_edit_student_profile")],
+        [InlineKeyboardButton(text="Удалить ученика", callback_data="tutor_delete_student")],
+        [InlineKeyboardButton(text="Редактировать профиль ученика", callback_data="tutor_edit_student_profile")],
         [BACK_INLINE_BUTTON]
     ]
 )
@@ -193,6 +198,7 @@ TUTOR_EDIT_STUDENT_PROFILE_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Имя", callback_data="tutor_edit_student_name"),
          InlineKeyboardButton(text="Фамилия", callback_data="tutor_edit_student_surname")],
+        [InlineKeyboardButton(text="Обновить результаты пробника", callback_data="tutor_update_probe")],
         [BACK_INLINE_BUTTON]
     ]
 )
@@ -229,6 +235,18 @@ def get_dates_in_month_inline_keyboard() -> InlineKeyboardMarkup:
 
     return builder.as_markup()
 
+
+def get_all_homework_inline_keyboard(homeworks: list) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    for hw in homeworks:
+        date_str = hw.date_setting_homework.strftime("%d.%m.%Y")
+        builder.button(text=date_str, callback_data=f"tutor_check_homework_{date_str}")
+
+    builder.adjust(5, repeat=True)
+    builder.row(BACK_INLINE_BUTTON)
+
+    return builder.as_markup()
 
 # ======================================================================
 # -----------------------------PARENT BLOCK-----------------------------

@@ -18,7 +18,7 @@ class Lesson(Base):
 
     email = Column(String(255))
     telegram_username = Column(String(255), nullable=False)
-    passed = Column(Boolean, nullable=False, default=False)
+    date = Column(DateTime, nullable=False)
 
 
 class Student(Base):
@@ -31,6 +31,8 @@ class Student(Base):
 
     telegram_id = Column(Integer, nullable=False, unique=True)
     student_id = Column(String(10), nullable=False, unique=True)
+
+    last_probe_result = Column(Integer)
 
     homeworks = relationship("Homework", back_populates="student")
 

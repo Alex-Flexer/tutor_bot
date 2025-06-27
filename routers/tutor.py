@@ -2,7 +2,6 @@ import os
 import secrets
 from datetime import datetime
 import asyncio
-import re
 
 import dotenv
 
@@ -13,39 +12,21 @@ from aiogram.utils.media_group import MediaGroupBuilder
 from aiogram.types import (
     Message,
     FSInputFile,
-    CallbackQuery,
-    InputMediaPhoto
+    CallbackQuery
 )
 from aiogram.exceptions import TelegramBadRequest
 
 from utils import keyboards as kb, captions
 from database import utils as db_utils
-from routers.utils import TutorForm, save_last_message, ENV_PATH, clear_media_group
+from database.models import Lesson
+from routers.utils import TutorForm, save_last_message, ENV_PATH, clear_media_group, lessons_to_text, check_student_id
 
-
-async def check_student_id(
-    callback_or_message: CallbackQuery | Message,
-    state: FSMContext
-) -> int | None:
-    student_id = await state.get_value("student_id")
-    callback_mode = isinstance(callback_or_message, CallbackQuery)
-    message = callback_or_message.message if callback_mode else callback_or_message
-
-    if student_id is None:
-        await message.edit_text(
-            text=captions.CHOOSE_STUDENT,
-            reply_markup=kb.get_students_inline_keyboard()
-        )
-        if callback_mode:
-            await callback_or_message.answer()
-
-    return student_id
 
 form_router = Router()
 
 
 # ======================================================================
-# -------------------------------STUART BLOCK---------------------------
+# -------------------------------START BLOCK----------------------------
 # ======================================================================
 
 
@@ -59,8 +40,8 @@ async def process_input_sk(message: Message, state: FSMContext):
 
     if user_sk == sk:
         await method(
-            text=captions.CHOOSE_STUDENT,
-            reply_markup=kb.get_students_inline_keyboard()
+            text=captions.CHOOSE_OPTION,
+            reply_markup=kb.TUTOR_MENU_INLINE_KEYBOARD
         )
         await state.update_data(tutor_allowed=datetime.now())
         await state.set_state()
@@ -75,8 +56,20 @@ async def process_input_sk(message: Message, state: FSMContext):
     await message.delete()
 
 
+@form_router.callback_query(F.data == "tutor_students")
+async def process_tutor_students(callback: CallbackQuery, state: FSMContext):
+    await save_last_message(callback.message, state)
+
+    await callback.message.edit_text(
+        text=captions.CHOOSE_STUDENT,
+        reply_markup=kb.get_students_inline_keyboard()
+    )
+
+    await callback.answer()
+
+
 @form_router.callback_query(F.data.startswith("tutor_select_"))
-async def process_choose_student(callback: CallbackQuery, state: FSMContext):
+async def process_select_student(callback: CallbackQuery, state: FSMContext):
     await save_last_message(callback.message, state)
 
     student_id = callback.data.removeprefix("tutor_select_")
@@ -88,6 +81,65 @@ async def process_choose_student(callback: CallbackQuery, state: FSMContext):
     )
 
     await callback.answer()
+
+
+# ======================================================================
+# -----------------------------LESSONS BLOCK----------------------------
+# ======================================================================
+
+
+@form_router.callback_query(F.data == "tutor_lessons")
+async def process_tutor_lessons(callback: CallbackQuery, state: FSMContext):
+    await save_last_message(callback.message, state)
+    lessons: list[Lesson] = sorted(db_utils.get_lessons(), key=lambda lesson: lesson.date)
+
+    if not lessons:
+        text = captions.EMPTY_LESSONS_LIST
+    else:
+        lessons_text = lessons_to_text(lessons)
+        text = captions.LESSONS_LIST.format(lessons_text)
+
+        await state.set_state(TutorForm.deleting_lesson)
+
+    lessons_list_msg = await callback.message.edit_text(
+        text=text,
+        reply_markup=kb.BACK_INLINE_KEYBOARD
+    )
+
+    if lessons:
+        await state.update_data(lessons_list_msg=lessons_list_msg)
+
+    await callback.answer()
+
+
+@form_router.message(F.text.regexp(r"^/del_\d+$"), TutorForm.deleting_lesson)
+async def process_del_lesson(message: Message, state: FSMContext):
+    lesson_id = message.text.split("_")[1]
+    lessons_list_msg = await state.get_value("lessons_list_msg")
+
+    method = (
+        message.answer
+        if lessons_list_msg is None
+        else lessons_list_msg.edit_text
+    )
+
+    db_utils.delete_lesson(lesson_id)
+
+    new_lessons = db_utils.get_lessons()
+
+    if not new_lessons:
+        new_text = captions.EMPTY_LESSONS_LIST
+        await state.set_state()
+    else:
+        new_lessons_text = lessons_to_text(new_lessons)
+        new_text = captions.LESSONS_LIST.format(new_lessons_text)
+
+    await method(
+        text=new_text,
+        reply_markup=kb.BACK_INLINE_KEYBOARD
+    )
+
+    await message.delete()
 
 
 # ======================================================================
@@ -148,17 +200,6 @@ async def process_set_hw(callback: CallbackQuery, state: FSMContext):
         text=captions.CHOOSE_DATE,
         reply_markup=kb.get_dates_in_month_inline_keyboard()
     )
-
-    await callback.answer()
-
-
-@form_router.callback_query(F.data == "tutor_update_probe")
-async def process_update_probe(callback: CallbackQuery, state: FSMContext):
-    student_id = await check_student_id(callback, state)
-    if student_id is None:
-        return
-
-    await save_last_message(callback.message, state)
 
     await callback.answer()
 
@@ -452,6 +493,75 @@ async def process_upload_feedback(message: Message, state: FSMContext):
         await reset_data()
 
 
+@form_router.callback_query(F.data == "tutor_all_hw")
+async def process_get_all_homeworks(callback: CallbackQuery, state: FSMContext):
+    student_id = await check_student_id(callback, state)
+    if student_id is None:
+        return
+
+    await save_last_message(callback.message, state)
+
+    homeworks = db_utils.get_homeworks(student_id=student_id)
+
+    if not homeworks:
+        await callback.message.edit_text(
+            text=captions.EMPTY,
+            reply_markup=kb.BACK_INLINE_KEYBOARD
+        )
+    else:
+        await callback.message.edit_text(
+            text=captions.CHOOSE_DATE,
+            reply_markup=kb.get_all_homework_inline_keyboard(homeworks)
+        )
+
+    await callback.answer()
+
+
+@form_router.callback_query(F.data.startswith("tutor_check_homework_"))
+async def process_select_homework_date(callback: CallbackQuery, state: FSMContext):
+    student_id = await check_student_id(callback, state)
+    if student_id is None:
+        return
+
+    date_str = callback.data.removeprefix("tutor_check_homework_")
+    mode = "homework"
+
+    photos = os.listdir(db_utils.IMAGES_PATH.format(student_id, date_str, mode))
+
+    with open(db_utils.COMMENT_PATH.format(student_id, date_str, mode), 'r', encoding='utf-8') as comment_file:
+        comment = comment_file.read()
+
+    if not comment:
+        comment = captions.EMPTY_TUTOR_COMMENT
+
+    caption = captions.TUTOR_COMMENT.format(comment)
+
+    if photos:
+        media_builder = MediaGroupBuilder(caption=caption)
+        for photo in photos:
+            media_builder.add(
+                type="photo",
+                media=FSInputFile(os.path.join(
+                    db_utils.IMAGES_PATH.format(student_id, date_str, mode),
+                    photo)
+                )
+            )
+
+        media_group = await callback.message.answer_media_group(media=media_builder.build())
+        await state.update_data(media_group=media_group)
+
+        await callback.message.answer(
+            text=captions.CHOOSE_OPTION,
+            reply_markup=kb.BACK_INLINE_KEYBOARD
+        )
+        await callback.message.delete()
+    else:
+        await callback.message.edit_text(
+            text=caption,
+            reply_markup=kb.BACK_INLINE_KEYBOARD
+        )
+
+
 # ======================================================================
 # -----------------------------STUDENT BLOCK---------------------------
 # ======================================================================
@@ -539,7 +649,6 @@ async def process_delete_student(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-
 @form_router.callback_query(F.data == "tutor_edit_student_profile")
 async def process_student_profile(callback: CallbackQuery, state: FSMContext) -> None:
     student_id = await check_student_id(callback.message, state)
@@ -553,8 +662,14 @@ async def process_student_profile(callback: CallbackQuery, state: FSMContext) ->
     name = student.name
     surname = student.surname
 
+    probe_result = student.last_probe_result
+
+    if probe_result is None:
+        probe_result = "undefined"
+
     await callback.message.edit_text(
-        text=captions.STUDENT_PROFILE_TEXT.format(name, surname, html.code(student_id)),
+        text=captions.STUDENT_PROFILE_TEXT.format(
+            name, surname, html.code(student_id), probe_result),
         reply_markup=kb.TUTOR_EDIT_STUDENT_PROFILE_INLINE_KEYBOARD
     )
 
@@ -621,3 +736,59 @@ async def process_edit_student_name(message: Message, state: FSMContext) -> None
         text=text,
         reply_markup=kb.BACK_INLINE_KEYBOARD
     )
+
+
+@form_router.callback_query(F.data == "tutor_update_probe")
+async def process_update_probe(callback: CallbackQuery, state: FSMContext):
+    student_id = await check_student_id(callback, state)
+    if student_id is None:
+        return
+
+    await save_last_message(callback.message, state)
+
+    last_msg = await callback.message.edit_text(
+        text=captions.UPDATE_PROBE_RESULT,
+        reply_markup=kb.BACK_INLINE_KEYBOARD
+    )
+
+    await state.set_state(TutorForm.setting_probe_result)
+    await state.update_data(last_msg=last_msg)
+    await callback.answer()
+
+
+@form_router.message(TutorForm.setting_probe_result)
+async def process_update_probe_result(message: Message, state: FSMContext):
+    student_id = await check_student_id(message, state)
+    if student_id is None:
+        return
+
+    last_msg = await state.get_value("last_msg")
+
+    method = (
+        message.answer
+        if last_msg is None
+        else last_msg.edit_text
+    )
+
+    new_result = message.text
+    if new_result.isdecimal() and int(new_result) <= 1000:
+        new_result = int(new_result)
+        probe_result_updated = db_utils.update_probe_result(new_result, student_id=student_id)
+
+        text = captions.DATA_UPDATED_SUCCESS if probe_result_updated else captions.DATA_UPDATED_FAILED
+
+        await method(
+            text=text,
+            reply_markup=kb.BACK_INLINE_KEYBOARD
+        )
+
+        await state.set_state()
+
+    else:
+        await method(
+            text=captions.INCORRECT_FORMAT_RESULT_PROBE,
+            reply_markup=kb.BACK_INLINE_KEYBOARD
+        )
+
+    await message.delete()
+

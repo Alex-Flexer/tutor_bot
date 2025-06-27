@@ -59,8 +59,8 @@ async def process_i_am(callback: CallbackQuery, state: FSMContext) -> None:
 
         else:
             await message.edit_text(
-                text=captions.CHOOSE_STUDENT,
-                reply_markup=kb.get_students_inline_keyboard()
+                text=captions.CHOOSE_OPTION,
+                reply_markup=kb.TUTOR_MENU_INLINE_KEYBOARD
             )
 
     elif role == "student":
@@ -90,6 +90,7 @@ async def process_i_am(callback: CallbackQuery, state: FSMContext) -> None:
 async def process_back(callback: CallbackQuery, state: FSMContext):
     text, keyboard = await get_previous_message(state)
     await callback.message.edit_text(text, reply_markup=keyboard)
+    await state.set_state()
     await callback.answer()
 
 

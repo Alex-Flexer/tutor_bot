@@ -53,7 +53,8 @@ def _auto_session(func):
 @_catch_except()
 @_post_commit
 def add_lesson(session: Session, email: str, telegram_username: str) -> bool:
-    session.add(Lesson(email, telegram_username, False))
+    date = datetime.combine(datetime.today(), time.min)
+    session.add(Lesson(email=email, telegram_username=telegram_username, date=date))
     return True
 
 
@@ -86,13 +87,20 @@ def delete_student(session: Session, student_id: str) -> bool:
     student = get_student(student_id=student_id)
     if student is not None:
         session.query(Homework).filter_by(student_id=student.id).delete()
-        
+
         student_dir_path = _STUDENT_HOMEWORK_PATH.format(student_id)
         if os.path.exists(student_dir_path):
             shutil.rmtree(student_dir_path)
-        
+
         session.query(Student).filter_by(student_id=student_id).delete()
 
+    return True
+
+
+@_catch_except()
+@_post_commit
+def delete_lesson(session: Session, lesson_id) -> None:
+    session.query(Lesson).filter_by(id=lesson_id).delete()
     return True
 
 
@@ -122,7 +130,8 @@ def set_homework(session: Session, student_id: str, homework_date: datetime) -> 
 
         for mode in ("homework", "feedback", "submitted"):
             os.mkdir(_HOMEWORK_STUDENT_DATE_MODE_PATH.format(student_id, homework_date_str, mode))
-            os.mkdir(_HOMEWORK_STUDENT_DATE_MODE_IMAGES_PATH.format(student_id, homework_date_str, mode))
+            os.mkdir(_HOMEWORK_STUDENT_DATE_MODE_IMAGES_PATH.format(
+                student_id, homework_date_str, mode))
             open(
                 file=COMMENT_PATH.format(student_id, homework_date_str, mode),
                 mode='x',
@@ -191,7 +200,7 @@ def _get_student(session: Session, **kwargs) -> Student | None:
 
 @_catch_except()
 @_post_commit
-def update_student_name(session: Session, name: str, **kwargs) -> Student | None:
+def update_student_name(session: Session, name: str, **kwargs) -> bool | None:
     student = _get_student(session, **kwargs)
     if student is None:
         return None
@@ -202,7 +211,17 @@ def update_student_name(session: Session, name: str, **kwargs) -> Student | None
 
 @_catch_except()
 @_post_commit
-def update_student_surname(session: Session, surname: str, **kwargs) -> Student | None:
+def update_probe_result(session: Session, probe_result: str, **kwargs) -> bool | None:
+    student = _get_student(session, **kwargs)
+    if student is None:
+        return None
+
+    student.last_probe_result = probe_result
+    return True
+
+@_catch_except()
+@_post_commit
+def update_student_surname(session: Session, surname: str, **kwargs) -> bool | None:
     student = _get_student(session, **kwargs)
     if student is None:
         return None
@@ -226,8 +245,12 @@ def get_all_students(session: Session) -> list[Student]:
 
 
 @_auto_session
-def check_toek(session: Session) -> list[Student]:
-    return [student.student_id for student in session.query(Lesson).filter_by(passed=False).all()]
+def get_lessons(session: Session) -> list[Lesson]:
+    return session.query(Lesson).all()
+
+
+def get_student_probe_result(**kwargs) -> int | None:
+    return get_student(**kwargs).last_probe_result
 
 
 @_catch_except(default=[])
