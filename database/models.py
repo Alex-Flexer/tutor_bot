@@ -19,6 +19,13 @@ class Lesson(Base):
     email = Column(String(255))
     telegram_username = Column(String(255), nullable=False)
     date = Column(DateTime, nullable=False)
+    
+    __table_args__ = (
+        UniqueConstraint(
+            'email', 'date',
+            name='date_email_uc'
+        ),
+    )
 
 
 class Student(Base):

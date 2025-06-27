@@ -9,7 +9,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand
 
-from routers import common_router, student_router, tutor_router
+from routers import common_router, student_router, tutor_router, parent_router
 
 
 BOT_COMMANDS = [
@@ -32,6 +32,7 @@ async def main():
     dp.include_router(tutor_router)
     dp.include_router(student_router)
     dp.include_router(common_router)
+    dp.include_router(parent_router)
 
     await dp.start_polling(bot)
 

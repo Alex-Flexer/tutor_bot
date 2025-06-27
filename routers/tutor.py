@@ -19,7 +19,11 @@ from aiogram.exceptions import TelegramBadRequest
 from utils import keyboards as kb, captions
 from database import utils as db_utils
 from database.models import Lesson
-from routers.utils import TutorForm, save_last_message, ENV_PATH, clear_media_group, lessons_to_text, check_student_id
+from routers.utils import (
+    TutorForm, save_last_message,
+    clear_media_group, lessons_to_text, check_student_id,
+    ENV_PATH
+)
 
 
 form_router = Router()
@@ -583,6 +587,20 @@ async def process_student_options(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
+#                               ADD / DELETE STUDENT
+@form_router.callback_query(F.data == "tutor_add_student")
+async def process_add_student(callback: CallbackQuery, state: FSMContext):
+    last_msg = await callback.message.edit_text(
+        text=captions.SET_STUDENT_TELEGRAM_ID,
+        reply_markup=kb.BACK_INLINE_KEYBOARD
+    )
+
+    await state.update_data(last_msg=last_msg)
+    await state.set_state(TutorForm.setting_student_id)
+
+    await callback.answer()
+
+
 @form_router.message(TutorForm.setting_student_id)
 async def process_set_student_username(message: Message, state: FSMContext):
     student_id = message.text
@@ -617,19 +635,6 @@ async def process_set_student_username(message: Message, state: FSMContext):
     await message.delete()
 
 
-@form_router.callback_query(F.data == "tutor_add_student")
-async def process_add_student(callback: CallbackQuery, state: FSMContext):
-    last_msg = await callback.message.edit_text(
-        text=captions.SET_STUDENT_TELEGRAM_ID,
-        reply_markup=kb.BACK_INLINE_KEYBOARD
-    )
-
-    await state.update_data(last_msg=last_msg)
-    await state.set_state(TutorForm.setting_student_id)
-
-    await callback.answer()
-
-
 @form_router.callback_query(F.data == "tutor_delete_student")
 async def process_delete_student(callback: CallbackQuery, state: FSMContext):
     student_id = await check_student_id(callback.message, state)
@@ -649,6 +654,7 @@ async def process_delete_student(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
+#                               EDIT PROFILE STUDENT
 @form_router.callback_query(F.data == "tutor_edit_student_profile")
 async def process_student_profile(callback: CallbackQuery, state: FSMContext) -> None:
     student_id = await check_student_id(callback.message, state)

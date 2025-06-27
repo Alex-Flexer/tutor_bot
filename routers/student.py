@@ -3,6 +3,7 @@ import random
 import os
 import secrets
 from datetime import datetime
+from queue import deque
 
 from aiogram import Router, F, html
 from aiogram.fsm.context import FSMContext
@@ -282,7 +283,7 @@ async def process_variant_number(callback: CallbackQuery, state: FSMContext) -> 
     )
 
     await state.set_state(StudentForm.solving_tasks)
-    pre_text = await message.answer(captions.VARIANT_NUMBER.format(variant_idx), reply_markup=ReplyKeyboardRemove())
+    pre_text = await message.answer(captions.VARIANT_NUMBER.format(variant_idx + 1), reply_markup=ReplyKeyboardRemove())
     await state.update_data(pre_text=pre_text)
 
     await show_variant_task(message, state)
@@ -363,7 +364,10 @@ async def process_answer_task(message: Message, state: FSMContext) -> None:
         await show_results(message, state)
 
         await state.clear()
-        await state.update_data(answers=[])
+        await state.update_data(
+            answers=[],
+            msg_history=data.get("msg_history", deque())
+        )
 
     else:
         await show_task(message, state)
@@ -379,8 +383,13 @@ async def process_stop(callback: CallbackQuery, state: FSMContext) -> None:
             reply_markup=kb.EXAM_TYPE_INLINE_KEYBOARD
         )
 
+    msg_history = await state.get_value("msg_history")
+
     await state.clear()
-    await state.update_data(answers=[])
+    await state.update_data(
+        answers=[],
+        msg_history=msg_history
+    )
 
     await callback.answer()
 

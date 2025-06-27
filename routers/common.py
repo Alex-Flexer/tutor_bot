@@ -15,6 +15,7 @@ form_router = Router()
 
 @form_router.message(CommandStart())
 async def command_start(message: Message) -> None:
+    print(message.from_user.username)
     photo = FSInputFile("./images/start_img.jpg")
     await message.answer_photo(
         photo,

@@ -2,3 +2,4 @@
 from .common import form_router as common_router
 from .student import form_router as student_router
 from .tutor import form_router as tutor_router
+from .parent import form_router as parent_router

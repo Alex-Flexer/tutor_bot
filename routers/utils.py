@@ -38,6 +38,11 @@ class StudentForm(StatesGroup):
     setting_surname = State()
 
 
+class ParentForm(StatesGroup):
+    inputting_student_id = State()
+    inputting_email = State()
+
+
 async def save_last_message(message: Message, state: FSMContext):
     msg_history: deque = await state.get_value("msg_history", deque())
 
