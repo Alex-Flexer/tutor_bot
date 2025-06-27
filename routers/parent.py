@@ -20,9 +20,7 @@ from aiogram.exceptions import TelegramBadRequest
 from utils import (
     keyboards as kb, captions,
     ParentForm,
-    save_last_message, clear_media_group,
-    lessons_to_text, check_student_id,
-    ENV_PATH
+    save_last_message,lessons_to_text
 )
 from database import utils as db_utils
 from database.models import Lesson

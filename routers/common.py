@@ -20,7 +20,6 @@ form_router = Router()
 
 @form_router.message(CommandStart())
 async def command_start(message: Message) -> None:
-    print(message.from_user.username)
     photo = FSInputFile("./images/start_img.jpg")
     await message.answer_photo(
         photo,
@@ -35,8 +34,6 @@ async def command_contacts(message: Message) -> None:
 
 @form_router.message(Command("menu"))
 async def command_menu(message: Message, state: FSMContext) -> None:
-    await save_last_message(message, state)
-
     await message.answer(
         text=captions.CHOOSE_ROLE,
         reply_markup=kb.MAIN_MENU_INLINE_KEYBOARD
@@ -49,7 +46,6 @@ async def process_i_am(callback: CallbackQuery, state: FSMContext) -> None:
 
     role = callback.data.lstrip("i_am_")
     message = callback.message
-    print(role)
 
     if role == "tutor":
         datetime_allowed = await state.get_value("tutor_allowed")
