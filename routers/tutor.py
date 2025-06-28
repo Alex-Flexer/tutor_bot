@@ -30,64 +30,6 @@ form_router = Router()
 
 
 # ======================================================================
-# -------------------------------START BLOCK----------------------------
-# ======================================================================
-
-
-@form_router.message(TutorForm.inputting_sk)
-async def process_input_sk(message: Message, state: FSMContext):
-    user_sk = message.text
-    sk = dotenv.get_key(ENV_PATH, "TUTOR_SECRET_KEY")
-
-    last_msg = await state.get_value("last_msg")
-    method = message.answer if last_msg is None else last_msg.edit_text
-
-    if user_sk == sk:
-        await method(
-            text=captions.CHOOSE_OPTION,
-            reply_markup=kb.TUTOR_MENU_INLINE_KEYBOARD
-        )
-        await state.update_data(tutor_allowed=datetime.now())
-        await state.set_state()
-
-    elif last_msg is not None and last_msg.text != captions.INPUT_SK_AGAIN:
-        last_msg = await method(
-            text=captions.INPUT_SK_AGAIN,
-            reply_markup=kb.BACK_INLINE_KEYBOARD
-        )
-        await state.update_data(last_msg=last_msg)
-
-    await message.delete()
-
-
-@form_router.callback_query(F.data == "tutor_students")
-async def process_tutor_students(callback: CallbackQuery, state: FSMContext):
-    await save_last_message(callback.message, state)
-
-    await callback.message.edit_text(
-        text=captions.CHOOSE_STUDENT,
-        reply_markup=kb.get_students_inline_keyboard()
-    )
-
-    await callback.answer()
-
-
-@form_router.callback_query(F.data.startswith("tutor_select_"))
-async def process_select_student(callback: CallbackQuery, state: FSMContext):
-    await save_last_message(callback.message, state)
-
-    student_id = callback.data.removeprefix("tutor_select_")
-    await state.update_data(student_id=student_id)
-
-    await callback.message.edit_text(
-        text=captions.CHOOSE_OPTION,
-        reply_markup=kb.TUTOR_OPTION_INLINE_KEYBOARD
-    )
-
-    await callback.answer()
-
-
-# ======================================================================
 # -----------------------------LESSONS BLOCK----------------------------
 # ======================================================================
 
@@ -569,6 +511,32 @@ async def process_select_homework_date(callback: CallbackQuery, state: FSMContex
 # ======================================================================
 # -----------------------------STUDENT BLOCK---------------------------
 # ======================================================================
+
+@form_router.callback_query(F.data == "tutor_students")
+async def process_tutor_students(callback: CallbackQuery, state: FSMContext):
+    await save_last_message(callback.message, state)
+
+    await callback.message.edit_text(
+        text=captions.CHOOSE_STUDENT,
+        reply_markup=kb.get_students_inline_keyboard()
+    )
+
+    await callback.answer()
+
+
+@form_router.callback_query(F.data.startswith("tutor_select_"))
+async def process_select_student(callback: CallbackQuery, state: FSMContext):
+    await save_last_message(callback.message, state)
+
+    student_id = callback.data.removeprefix("tutor_select_")
+    await state.update_data(student_id=student_id)
+
+    await callback.message.edit_text(
+        text=captions.CHOOSE_OPTION,
+        reply_markup=kb.TUTOR_OPTION_INLINE_KEYBOARD
+    )
+
+    await callback.answer()
 
 
 @form_router.callback_query(F.data == "tutor_student_options")

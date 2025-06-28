@@ -1,6 +1,8 @@
 from datetime import datetime
 
-from aiogram import Router, F
+import dotenv
+
+from aiogram import Router, F, html
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, FSInputFile, CallbackQuery
 from aiogram.fsm.state import default_state
@@ -9,9 +11,8 @@ from aiogram.fsm.context import FSMContext
 from database import utils as db_utils
 from utils import (
     keyboards as kb, captions,
-    TutorForm,
     save_last_message, get_previous_message,
-    CACHE_INTERVAL_EXPIRE
+    ENV_PATH
 )
 
 
@@ -25,6 +26,11 @@ async def command_start(message: Message) -> None:
         photo,
         captions.HELLO_TEXT
     )
+
+
+@form_router.message(Command("myid"))
+async def command_start(message: Message) -> None:
+    await message.answer(captions.MY_ID.format(html.code(message.from_user.id)))
 
 
 @form_router.message(Command("contacts"))
@@ -48,17 +54,14 @@ async def process_i_am(callback: CallbackQuery, state: FSMContext) -> None:
     message = callback.message
 
     if role == "tutor":
-        datetime_allowed = await state.get_value("tutor_allowed")
-
-        if datetime_allowed is None or datetime.now() - datetime_allowed > CACHE_INTERVAL_EXPIRE:
-
-            last_msg = await message.edit_text(
-                text=captions.INPUT_SK,
+        allowed_tutors_id = map(int, dotenv.get_key(ENV_PATH, "ALLOWED_TUTORS_ID").split(";"))
+        user_id = callback.from_user.id
+        
+        if user_id not in allowed_tutors_id:
+            await callback.message.edit_text(
+                text=captions.NOT_TUTOR,
                 reply_markup=kb.BACK_INLINE_KEYBOARD
             )
-            await state.set_state(TutorForm.inputting_sk)
-            await state.update_data(last_msg=last_msg)
-
         else:
             await message.edit_text(
                 text=captions.CHOOSE_OPTION,
