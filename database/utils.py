@@ -55,8 +55,19 @@ def _auto_session(func):
 def add_lesson(session: Session, telegram_username: str, email: str = None, other_data = None) -> bool:
     if not ((email is None) ^ (other_data is None)):
         return False
-
+    
     date = datetime.combine(datetime.today(), time.min)
+
+    amount_lessons_today = len(
+            session.query(Lesson).filter(
+                Lesson.telegram_username == telegram_username,
+                Lesson.date == date
+            ).all()
+        )
+    
+    if amount_lessons_today >= 3:
+        return False
+
     if email is not None:
         session.add(Lesson(email=email, telegram_username=telegram_username, date=date))
     else:
