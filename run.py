@@ -1,4 +1,3 @@
-from subprocess import Popen
 import sys
 import os
 
@@ -12,5 +11,5 @@ def set_work_dir():
 
 if __name__ == "__main__":
     work_dir = set_work_dir()
-    Popen(["pm2", "start" "main_bot.py"], cwd=work_dir)
-    Popen(["pm2", "start", "admin_bot.py"], cwd=work_dir)
+    os.system("pm2 start main_bot.py")
+    os.system("pm2 start admin_bot.py")
