@@ -47,6 +47,7 @@ async def command_start(message: Message) -> None:
         captions.HELLO_TEXT,
         reply_markup=kb.MAIN_MENU_INLINE_KEYBOARD
     )
+    await state.update_data(msg_history=deque())
 
 @form_router.message(Command("contacts"))
 async def command_contacts(message: Message) -> None:
@@ -59,6 +60,7 @@ async def command_menu(message: Message, state: FSMContext) -> None:
         text=captions.CHOOSE_ROLE,
         reply_markup=kb.MAIN_MENU_INLINE_KEYBOARD
     )
+    await state.update_data(msg_history=deque())
 
 
 @form_router.message(Command("i_am_tutor"))
@@ -69,13 +71,14 @@ async def command_menu(message: Message, state: FSMContext) -> None:
     if user_id not in allowed_tutors_id:
         await message.answer(
             text=captions.NOT_TUTOR,
-            reply_markup=kb.BACK_INLINE_KEYBOARD
+            reply_markup=None
         )
     else:
         await message.answer(
             text=captions.CHOOSE_OPTION,
             reply_markup=kb.TUTOR_MENU_INLINE_KEYBOARD
         )
+        await state.update_data(msg_history=deque())
 
 
 @form_router.callback_query(F.data.startswith("i_am_"))

@@ -21,7 +21,7 @@ from utils import (
     keyboards as kb, captions,
     TutorForm,
     save_last_message, clear_media_group,
-    lessons_to_text, check_student_id,
+    lessons_to_text, check_student_id, check_value_empty,
     ENV_PATH
 )
 
@@ -607,14 +607,16 @@ async def process_set_student_username(message: Message, state: FSMContext):
     last_msg = await state.get_value("last_msg")
     method = message.answer if last_msg is None else last_msg.edit_text
 
-    student_id = await state.get_value("student_id")
+    student_id = await check_value_empty(
+        method=method,
+        state=state,
+        key="student_id",
+        text=captions.SET_STUDENT_TELEGRAM_ID,
+        keyboard=kb.BACK_INLINE_KEYBOARD
+    )
+
     if student_id is None:
-        last_msg = await method(
-            text=captions.SET_STUDENT_TELEGRAM_ID,
-            reply_markup=kb.BACK_INLINE_KEYBOARD
-        )
         await state.set_state(TutorForm.setting_student_id)
-        await state.update_data(last_msg=last_msg)
         await message.delete()
         return
 
@@ -644,25 +646,29 @@ async def process_set_student_username(message: Message, state: FSMContext):
     last_msg = await state.get_value("last_msg")
     method = message.answer if last_msg is None else last_msg.edit_text
 
-    student_id = await state.get_value("student_id")
+    student_id = await check_value_empty(
+        method=method,
+        state=state,
+        key="student_id",
+        text=captions.SET_STUDENT_TELEGRAM_ID,
+        keyboard=kb.BACK_INLINE_KEYBOARD
+    )
+
     if student_id is None:
-        last_msg = await method(
-            text=captions.SET_STUDENT_TELEGRAM_ID,
-            reply_markup=kb.BACK_INLINE_KEYBOARD
-        )
         await state.set_state(TutorForm.setting_student_id)
-        await state.update_data(last_msg=last_msg)
         await message.delete()
         return
+    
+    name = await check_value_empty(
+        method=method,
+        state=state,
+        key="student_name",
+        text=captions.EDIT_STUDENT_NAME,
+        keyboard=kb.BACK_INLINE_KEYBOARD
+    )
 
-    name = await state.get_value("student_name")
     if name is None:
-        last_msg = await method(
-            text=captions.EDIT_STUDENT_NAME,
-            reply_markup=kb.BACK_INLINE_KEYBOARD
-        )
         await state.set_state(TutorForm.setting_student_name)
-        await state.update_data(last_msg=last_msg)
         await message.delete()
         return
 

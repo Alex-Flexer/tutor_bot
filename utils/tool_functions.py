@@ -73,6 +73,18 @@ async def check_student_id(
     return student_id
 
 
+async def check_value_empty(method, state: FSMContext, key: str, text: str, keyboard: InlineKeyboardMarkup):
+    student_id = await state.get_value(key)
+    if student_id is None:
+        last_msg = await method(
+            text=text,
+            reply_markup=keyboard
+        )
+        await state.update_data(last_msg=last_msg)
+    return student_id
+        
+
+
 def lessons_to_text(lessons: list[Lesson]) -> str:
     lessons_str = [
         (captions.LESSON_EMAIL.format(
