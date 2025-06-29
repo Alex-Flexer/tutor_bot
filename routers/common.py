@@ -2,6 +2,7 @@ from datetime import datetime
 from queue import deque
 
 import dotenv
+import secrets
 
 from aiogram import Router, F, html
 from aiogram.filters import Command, CommandStart
@@ -22,13 +23,30 @@ form_router = Router()
 
 @form_router.message(CommandStart())
 async def command_start(message: Message) -> None:
+    parts = message.text.split()
+    if len(parts) == 2:
+        user_sk = parts[1]
+        real_sk = dotenv.get_key(ENV_PATH, "TUTOR_SECRET_KEY")
+
+        if user_sk == real_sk:
+            str_allowed_tutors_id = dotenv.get_key(ENV_PATH, "ALLOWED_TUTORS_ID")
+            allowed_tutors_id = list(str_allowed_tutors_id.split(";")) if str_allowed_tutors_id else []
+
+            user_id = str(message.from_user.id)
+
+            if user_id not in allowed_tutors_id:
+                allowed_tutors_id.append(user_id)
+                joined_allowed_tutors_id = ";".join(allowed_tutors_id)
+                dotenv.set_key(ENV_PATH, "ALLOWED_TUTORS_ID", joined_allowed_tutors_id)
+
+            dotenv.set_key(ENV_PATH, "TUTOR_SECRET_KEY", secrets.token_urlsafe(15))
+
     photo = FSInputFile("./images/start_img.jpg")
     await message.answer_photo(
         photo,
         captions.HELLO_TEXT,
         reply_markup=kb.MAIN_MENU_INLINE_KEYBOARD
     )
-
 
 @form_router.message(Command("contacts"))
 async def command_contacts(message: Message) -> None:
