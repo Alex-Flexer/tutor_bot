@@ -41,12 +41,14 @@ async def get_previous_message(state: FSMContext, k=1) -> tuple[str, InlineKeybo
             break
         msg_history.pop()
 
-    if not msg_history:
-        return (captions.CHOOSE_ROLE, kb.MAIN_MENU_INLINE_KEYBOARD)
-    else:
-        prev_msg = msg_history.pop()
-        await state.update_data(msg_history=msg_history)
-        return prev_msg
+    prev_msg = (
+        msg_history.pop()
+        if msg_history
+        else (captions.CHOOSE_ROLE, kb.MAIN_MENU_INLINE_KEYBOARD)
+    )
+
+    await state.update_data(msg_history=msg_history)
+    return prev_msg
 
 
 async def check_student_id(
