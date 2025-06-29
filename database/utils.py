@@ -52,16 +52,16 @@ def _auto_session(func):
 
 @_catch_except()
 @_post_commit
-def add_lesson(session: Session, email: str, telegram_username: str) -> bool:
+def add_lesson(session: Session, telegram_username: str, email: str = None, other_data = None) -> bool:
+    if not ((email is None) ^ (other_data is None)):
+        return False
+
     date = datetime.combine(datetime.today(), time.min)
-    session.add(Lesson(email=email, telegram_username=telegram_username, date=date))
-    return True
+    if email is not None:
+        session.add(Lesson(email=email, telegram_username=telegram_username, date=date))
+    else:
+        session.add(Lesson(other_data=other_data, telegram_username=telegram_username, date=date))
 
-
-@_catch_except()
-@_post_commit
-def pass_lesson(session: Session, email: str, telegram_username: str) -> bool:
-    session.add(Lesson(email=email, telegram_username=telegram_username, passed=False))
     return True
 
 

@@ -15,8 +15,8 @@ from routers import common_router, student_router, tutor_router, parent_router
 BOT_COMMANDS = [
     BotCommand(command="start", description="Start bot"),
     BotCommand(command="menu", description="Main menu"),
-    BotCommand(command="myid", description="Get my telegram-id"),
-    BotCommand(command="contacts", description="Get contacts")
+    BotCommand(command="contacts", description="Get contacts"),
+    BotCommand(command="i_am_tutor", description="Tutor mode")
 ]
 
 

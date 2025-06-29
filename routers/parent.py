@@ -36,7 +36,7 @@ async def process_student_info(callback: CallbackQuery, state: FSMContext):
     
     last_msg = await callback.message.edit_text(
         text=captions.INPUT_EMAIL,
-        reply_markup=kb.BACK_INLINE_KEYBOARD
+        reply_markup=kb.ADD_LESSON_INLINE_KEYBOARD
     )
     
     await state.update_data(last_msg=last_msg)
@@ -66,7 +66,7 @@ async def process_input_sk(message: Message, state: FSMContext):
             )
             await state.update_data(last_msg=last_msg)
     else:
-        lesson_added = db_utils.add_lesson(email, username)
+        lesson_added = db_utils.add_lesson(username, email=email)
 
         await method(
             text=(
@@ -76,8 +76,57 @@ async def process_input_sk(message: Message, state: FSMContext):
             ),
             reply_markup=kb.BACK_INLINE_KEYBOARD
         )
+        
+        await state.set_state()
 
     await message.delete()
+
+
+@form_router.callback_query(F.data == "another_way_sign_up_lesson")
+async def process_student_info(callback: CallbackQuery, state: FSMContext):
+    await save_last_message(callback.message, state)
+    
+    last_msg = await callback.message.edit_text(
+        text=captions.INPUT_CONTACT_DATA,
+        reply_markup=kb.DOUBLE_BACK_INLINE_KEYBOARD
+    )
+    
+    await state.update_data(last_msg=last_msg)
+    await state.set_state(ParentForm.inputting_other_data)
+
+    await callback.answer()
+
+
+@form_router.message(ParentForm.inputting_other_data)
+async def process_input_sk(message: Message, state: FSMContext):
+    last_msg = await state.get_value("last_msg")
+    method = message.answer if last_msg is None else last_msg.edit_text
+    
+    other_data = message.text
+    username = '@' + message.from_user.username
+
+    if len(other_data) >= 80:
+        if last_msg is None or last_msg.text != captions.INCORRECT_CONTACT_DATA:
+            last_msg = await method(
+                text=captions.INCORRECT_CONTACT_DATA,
+                reply_markup=kb.DOUBLE_BACK_INLINE_KEYBOARD
+            )
+            await state.update_data(last_msg=last_msg)
+    else:
+        lesson_added = db_utils.add_lesson(username, other_data=other_data)
+
+        await method(
+            text=(
+                captions.LESSON_ADD_SUCCESS
+                if lesson_added
+                else captions.LESSON_ADD_FAILED
+            ),
+            reply_markup=kb.DOUBLE_BACK_INLINE_KEYBOARD
+        )
+        await state.set_state()
+
+    await message.delete()
+
 
 # ======================================================================
 # -----------------------------STUDENT BLOCK----------------------------
@@ -96,7 +145,6 @@ async def process_student_info(callback: CallbackQuery, state: FSMContext):
     await state.set_state(ParentForm.inputting_student_id)
 
     await callback.answer()
-
 
 
 @form_router.message(ParentForm.inputting_student_id)

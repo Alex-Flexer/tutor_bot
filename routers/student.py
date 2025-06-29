@@ -5,6 +5,10 @@ import random
 import json
 import os
 
+from chatgpt_md_converter import telegram_format
+import openai
+import dotenv
+
 from aiogram import Router, F, html
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
@@ -15,14 +19,26 @@ from aiogram.types import (
     ReplyKeyboardRemove,
     FSInputFile,
     CallbackQuery,
-    InputMediaPhoto
+    InputMediaPhoto,
 )
+
 
 from database import utils as db_utils
 from utils import (
     keyboards as kb, captions,
     PreparationTypes, ExamTypes,
-    StudentForm, save_last_message
+    StudentForm, save_last_message,
+    ENV_PATH
+)
+
+AI_TOKEN = dotenv.get_key(ENV_PATH, "AI_TOKEN")
+
+assert AI_TOKEN is not None, "AI token is not defined"
+
+
+client = openai.OpenAI(
+    base_url="https://api.theb.ai/v1",
+    api_key=AI_TOKEN
 )
 
 
@@ -684,7 +700,67 @@ async def process_edit_student_name(message: Message, state: FSMContext) -> None
 
     await method(
         text=text,
-        reply_markup=kb.BACK_INLINE_KEYBOARD
+        reply_markup=kb.TRIPLE_BACK_INLINE_KEYBOARD
     )
 
     await state.set_state()
+
+# ======================================================================
+# ---------------------------STUDENT (AI) BLOCK-------------------------
+# ======================================================================
+
+@form_router.callback_query(F.data == "stop_ai_chatting", StudentForm.ai_chatting)
+async def process_stop_ai_chatting(callback: CallbackQuery, state: FSMContext) -> None: 
+    await state.set_state()
+    await callback.message.edit_reply_markup(reply_markup=None)
+
+    await callback.message.answer(
+        text=captions.AI_STOP,
+        reply_markup=kb.BACK_INLINE_KEYBOARD
+    )
+
+
+@form_router.callback_query(F.data == "start_ai_chatting")
+async def process_start_ai_chatting(callback: CallbackQuery, state: FSMContext) -> None: 
+    await save_last_message(callback.message, state)
+
+    await state.set_state(StudentForm.ai_chatting)
+    await state.update_data(history=[])
+
+    await callback.message.edit_text(
+        text=captions.AI_START,
+        reply_markup=None
+    )
+
+
+@form_router.message(StudentForm.ai_chatting)
+async def chat_with_gpt(message: Message, state: FSMContext):
+    await state.set_state()
+    
+    user_text = message.text if message.text is not None else message.caption
+    user_text += captions.LATEX_WARNING_AI
+
+    ai_history = await state.get_value("ai_history", [])
+    ai_history.append({"role": "user", "content": user_text})
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=ai_history
+        )
+
+        reply = response.choices[0].message.content
+
+        ai_history.append({"role": "assistant", "content": reply})
+
+        await state.update_data(ai_history=ai_history)
+        await message.answer(
+            telegram_format(reply),
+            reply_markup=kb.STOP_CHATTING
+        )
+        await state.set_state(StudentForm.ai_chatting)
+
+    except Exception as e:
+        print(e)
+        await state.set_state()
+        await message.answer(captions.AI_ERROR, reply_markup=kb.BACK_INLINE_KEYBOARD)

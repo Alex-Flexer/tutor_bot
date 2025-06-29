@@ -31,10 +31,15 @@ async def clear_media_group(state: FSMContext):
     await state.update_data(media_group=[])
 
 
-async def get_previous_message(state: FSMContext) -> tuple[str, InlineKeyboardMarkup]:
+async def get_previous_message(state: FSMContext, k=1) -> tuple[str, InlineKeyboardMarkup]:
     msg_history: deque = await state.get_value("msg_history")
 
     await clear_media_group(state)
+    
+    for _ in range(k - 1):
+        if not msg_history:
+            break
+        msg_history.pop()
 
     if not msg_history:
         return (captions.CHOOSE_ROLE, kb.MAIN_MENU_INLINE_KEYBOARD)
@@ -65,12 +70,20 @@ async def check_student_id(
 
 def lessons_to_text(lessons: list[Lesson]) -> str:
     lessons_str = [
-        captions.LESSON.format(
+        (captions.LESSON_EMAIL.format(
             lesson.id,
             lesson.date.strftime("%d.%m.%Y"),
             lesson.email,
             lesson.telegram_username
         )
+        if lesson.email is not None
+        else
+        captions.LESSON_OTHER_DATA.format(
+            lesson.id,
+            lesson.date.strftime("%d.%m.%Y"),
+            lesson.other_data,
+            lesson.telegram_username
+        ))
         for lesson in lessons
     ]
 

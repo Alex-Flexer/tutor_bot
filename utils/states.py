@@ -19,8 +19,11 @@ class StudentForm(StatesGroup):
 
     setting_name = State()
     setting_surname = State()
+    
+    ai_chatting = State()
 
 
 class ParentForm(StatesGroup):
     inputting_student_id = State()
     inputting_email = State()
+    inputting_other_data = State()

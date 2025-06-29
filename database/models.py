@@ -17,6 +17,7 @@ class Lesson(Base):
     id = Column(Integer, primary_key=True)
 
     email = Column(String(255))
+    other_data = Column(String(255))
     telegram_username = Column(String(255), nullable=False)
     date = Column(DateTime, nullable=False)
     
@@ -25,6 +26,10 @@ class Lesson(Base):
             'email', 'date',
             name='date_email_uc'
         ),
+        CheckConstraint(
+            'NOT (email IS NULL AND other_data IS NULL) AND NOT (other_data IS NOT NULL AND email IS NOT NULL)',
+            name='email_other_data_cc'
+        )
     )
 
 

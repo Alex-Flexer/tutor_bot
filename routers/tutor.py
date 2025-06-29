@@ -507,7 +507,6 @@ async def process_select_homework_date(callback: CallbackQuery, state: FSMContex
             reply_markup=kb.BACK_INLINE_KEYBOARD
         )
 
-
 # ======================================================================
 # -----------------------------STUDENT BLOCK---------------------------
 # ======================================================================
@@ -708,7 +707,7 @@ async def process_edit_student_name(message: Message, state: FSMContext) -> None
 
     await method(
         text=text,
-        reply_markup=kb.BACK_INLINE_KEYBOARD
+        reply_markup=kb.DOUBLE_BACK_INLINE_KEYBOARD
     )
 
 
@@ -753,7 +752,7 @@ async def process_update_probe_result(message: Message, state: FSMContext):
 
         await method(
             text=text,
-            reply_markup=kb.BACK_INLINE_KEYBOARD
+            reply_markup=kb.DOUBLE_BACK_INLINE_KEYBOARD
         )
 
         await state.set_state()
@@ -761,7 +760,7 @@ async def process_update_probe_result(message: Message, state: FSMContext):
     else:
         await method(
             text=captions.INCORRECT_FORMAT_RESULT_PROBE,
-            reply_markup=kb.BACK_INLINE_KEYBOARD
+            reply_markup=kb.DOUBLE_BACK_INLINE_KEYBOARD
         )
 
     await message.delete()

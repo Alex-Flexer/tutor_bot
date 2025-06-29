@@ -18,20 +18,21 @@ from database import utils as db_utils
 MAIN_MENU_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Ученик", callback_data="i_am_student"),
-         InlineKeyboardButton(text="Родитель", callback_data="i_am_parent"),
-         InlineKeyboardButton(text="Куратор", callback_data="i_am_tutor")]
+         InlineKeyboardButton(text="Родитель", callback_data="i_am_parent")]
     ]
 )
 
-
-BACK_INLINE_BUTTON = InlineKeyboardButton(text="Назад", callback_data="back")
+BACK_INLINE_BUTTON = InlineKeyboardButton(text="Назад", callback_data="back_1")
 
 BACK_INLINE_KEYBOARD = InlineKeyboardMarkup(inline_keyboard=[[BACK_INLINE_BUTTON]])
+
+DOUBLE_BACK_INLINE_KEYBOARD = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Назад", callback_data="back_2")]])
+
+TRIPLE_BACK_INLINE_KEYBOARD = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Назад", callback_data="back_3")]])
 
 # ======================================================================
 # ----------------------------STUDENT BLOCK-----------------------------
 # ======================================================================
-
 
 STOP_TEST_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[[InlineKeyboardButton(text="Стоп", callback_data="test_stop")]],
@@ -60,16 +61,15 @@ EXAM_TYPE_INLINE_KEYBOARD = InlineKeyboardMarkup(
     ]
 )
 
-
 STUDENT_MENU_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="ЕГЭ/ОГЭ", callback_data="student_exams"),
          InlineKeyboardButton(text="ДЗ", callback_data="student_hw"),
          InlineKeyboardButton(text="Профиль", callback_data="student_profile")],
+        [InlineKeyboardButton(text="ИИ-ассистент", callback_data="start_ai_chatting")],
         [BACK_INLINE_BUTTON]
     ]
 )
-
 
 STUDENT_PROFILE_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
@@ -123,6 +123,11 @@ TASKS_NUMBER_INLINE_KEYBOARD = InlineKeyboardMarkup(
     ]
 )
 
+STOP_CHATTING = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Стоп", callback_data="stop_ai_chatting")]
+    ]
+)
 
 def get_lines_inline_keyboard(tasks_number: int = 0) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
@@ -156,7 +161,6 @@ def get_homework_dates_inline_keyboard(dates: list[str], mode: str) -> InlineKey
     builder.row(BACK_INLINE_BUTTON)
     return builder.as_markup()
 
-
 # ======================================================================
 # ------------------------------TUTOR BLOCK-----------------------------
 # ======================================================================
@@ -164,8 +168,7 @@ def get_homework_dates_inline_keyboard(dates: list[str], mode: str) -> InlineKey
 TUTOR_MENU_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Ученики", callback_data="tutor_students"),
-         InlineKeyboardButton(text="Записи", callback_data="tutor_lessons")],
-        [BACK_INLINE_BUTTON]
+         InlineKeyboardButton(text="Записи", callback_data="tutor_lessons")]
     ]
 )
 
@@ -202,6 +205,7 @@ TUTOR_EDIT_STUDENT_PROFILE_INLINE_KEYBOARD = InlineKeyboardMarkup(
         [BACK_INLINE_BUTTON]
     ]
 )
+
 
 
 def get_students_inline_keyboard() -> InlineKeyboardMarkup:
@@ -257,6 +261,13 @@ PARENT_MENU_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Записаться на урок", callback_data="parent_sign_up_lesson")],
         [InlineKeyboardButton(text="Информация об ученике", callback_data="parent_student_info")],
+        [BACK_INLINE_BUTTON]
+    ]
+)
+
+ADD_LESSON_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Другой способ записи на урок", callback_data="another_way_sign_up_lesson")],
         [BACK_INLINE_BUTTON]
     ]
 )
