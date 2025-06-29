@@ -578,7 +578,7 @@ async def process_upload_hw(message: Message, state: FSMContext) -> None:
     try:
         submit_text_message = await method(
             text=caption,
-            reply_markup=kb.BACK_INLINE_KEYBOARD
+            reply_markup=kb.DOUBLE_BACK_INLINE_KEYBOARD
         )
     except TelegramBadRequest:
         ...

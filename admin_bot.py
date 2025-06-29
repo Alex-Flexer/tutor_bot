@@ -1,5 +1,5 @@
 import asyncio
-import logging
+# import logging
 import sys
 from secrets import token_urlsafe
 
@@ -17,7 +17,7 @@ from utils import captions, ENV_PATH
 form_router = Router()
 
 BOT_COMMANDS = [
-    BotCommand(command="gen_url", description="Generate temp url")
+    BotCommand(command="get_url", description="Get current temp url")
 ]
 
 config = dotenv_values(ENV_PATH)
@@ -26,7 +26,7 @@ TOKEN = config["ADMIN_BOT_TOKEN"]
 ADMIN_ID = int(config["ADMIN_ID"])
 
 
-@form_router.message(Command("gen_url"))
+@form_router.message(Command("get_url"))
 async def process_gen_token(message: Message):
     user_id = message.from_user.id
     if user_id != ADMIN_ID:
@@ -49,5 +49,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(stream=sys.stdout)
     asyncio.run(main())

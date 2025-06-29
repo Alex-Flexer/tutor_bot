@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import sys
-import os
 
 from dotenv import dotenv_values
 
@@ -9,6 +8,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand
+
 
 from routers import common_router, student_router, tutor_router, parent_router
 
@@ -23,17 +23,10 @@ BOT_COMMANDS = [
 
 config = dotenv_values(".env")
 TOKEN = config["MAIN_BOT_TOKEN"]
-
-
-def set_script_dir():
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    os.chdir(script_dir)
-    sys.path.insert(0, script_dir)
+LOG_FILE = config["LOG_FILE_PATH"]
 
 
 async def main():
-    set_script_dir()
-
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
     await bot.set_my_commands(commands=BOT_COMMANDS)
@@ -48,5 +41,10 @@ async def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(stream=sys.stdout)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        filename=LOG_FILE,
+        filemode="a"
+    )
     asyncio.run(main())

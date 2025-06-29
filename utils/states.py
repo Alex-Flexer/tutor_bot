@@ -7,7 +7,10 @@ class TutorForm(StatesGroup):
     setting_student_id = State()
     setting_student_name = State()
     setting_student_surname = State()
-    setting_probe_result = State()
+
+    editing_student_name = State()
+    editing_student_surname = State()
+    editing_probe_result = State()
 
     checking_hw = State()
     uploading_hw = State()

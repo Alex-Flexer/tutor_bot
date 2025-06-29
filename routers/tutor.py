@@ -571,7 +571,7 @@ async def process_add_student(callback: CallbackQuery, state: FSMContext):
 
 @form_router.message(TutorForm.setting_student_id)
 async def process_set_student_username(message: Message, state: FSMContext):
-    student_id = message.text
+    student_id = message.text.strip() if message.text is not None else message.caption.strip()
     last_msg = await state.get_value("last_msg")
 
     method = message.answer if last_msg is None else last_msg.edit_text
@@ -591,14 +591,106 @@ async def process_set_student_username(message: Message, state: FSMContext):
                 reply_markup=kb.BACK_INLINE_KEYBOARD
             )
         else:
-            student_added = db_utils.add_student(telegram_id=student_id)
+            last_msg = await method(
+                text=captions.TUTOR_EDIT_STUDENT_NAME,
+                reply_markup=None
+            )
 
-            await method(
-                text=(captions.STUDENT_ADD_SUCCESS
-                      if student_added
-                      else captions.STUDENT_ADD_FAILED),
+            await state.set_state(TutorForm.setting_student_name)
+            await state.update_data(last_msg=last_msg, student_id=student_id)
+
+    await message.delete()
+
+
+@form_router.message(TutorForm.setting_student_name)
+async def process_set_student_username(message: Message, state: FSMContext):
+    last_msg = await state.get_value("last_msg")
+    method = message.answer if last_msg is None else last_msg.edit_text
+
+    student_id = await state.get_value("student_id")
+    if student_id is None:
+        last_msg = await method(
+            text=captions.SET_STUDENT_TELEGRAM_ID,
+            reply_markup=kb.BACK_INLINE_KEYBOARD
+        )
+        await state.set_state(TutorForm.setting_student_id)
+        await state.update_data(last_msg=last_msg)
+        await message.delete()
+        return
+
+    name = message.text.strip() if message.text is not None else message.caption.strip()
+
+    if len(name) > 50 or not name.replace(" ", '').isalpha():
+        if last_msg is None or last_msg.text != captions.INCORRECT_STUDENT_DATA:
+            last_msg = await method(
+                text=captions.INCORRECT_STUDENT_DATA,
                 reply_markup=kb.BACK_INLINE_KEYBOARD
             )
+            await state.update_data(last_msg=last_msg)
+    else:
+        last_msg = await method(
+            text=captions.TUTOR_EDIT_STUDENT_SURNAME,
+            reply_markup=None
+        )
+
+        await state.set_state(TutorForm.setting_student_surname)
+        await state.update_data(last_msg=last_msg, student_name=name)
+
+    await message.delete()
+
+
+@form_router.message(TutorForm.setting_student_surname)
+async def process_set_student_username(message: Message, state: FSMContext):
+    last_msg = await state.get_value("last_msg")
+    method = message.answer if last_msg is None else last_msg.edit_text
+
+    student_id = await state.get_value("student_id")
+    if student_id is None:
+        last_msg = await method(
+            text=captions.SET_STUDENT_TELEGRAM_ID,
+            reply_markup=kb.BACK_INLINE_KEYBOARD
+        )
+        await state.set_state(TutorForm.setting_student_id)
+        await state.update_data(last_msg=last_msg)
+        await message.delete()
+        return
+
+    name = await state.get_value("student_name")
+    if name is None:
+        last_msg = await method(
+            text=captions.EDIT_STUDENT_NAME,
+            reply_markup=kb.BACK_INLINE_KEYBOARD
+        )
+        await state.set_state(TutorForm.setting_student_name)
+        await state.update_data(last_msg=last_msg)
+        await message.delete()
+        return
+
+    surname = message.text.strip() if message.text is not None else message.caption.strip()
+
+    if len(surname) > 50 or not surname.replace(" ", '').isalpha():
+        if last_msg is None or last_msg.text != captions.INCORRECT_STUDENT_DATA:
+            last_msg = await method(
+                text=captions.INCORRECT_STUDENT_DATA,
+                reply_markup=kb.BACK_INLINE_KEYBOARD
+            )
+            await state.update_data(last_msg=last_msg)
+    else:
+        await state.set_state()
+        await state.update_data(
+            student_id=None,
+            student_name=None,
+            student_surname=None
+        )
+
+        student_added = db_utils.add_student(telegram_id=student_id, name=name, surname=surname)
+
+        await method(
+            text=(captions.STUDENT_ADD_SUCCESS
+                  if student_added
+                  else captions.STUDENT_ADD_FAILED),
+            reply_markup=kb.BACK_INLINE_KEYBOARD
+        )
 
     await message.delete()
 
@@ -680,7 +772,7 @@ async def process_edit_student_data(callback: CallbackQuery, state: FSMContext) 
     await callback.answer()
 
 
-@form_router.message(StateFilter(TutorForm.setting_student_name, TutorForm.setting_student_surname))
+@form_router.message(StateFilter(TutorForm.editing_student_name, TutorForm.editing_student_surname))
 async def process_edit_student_name(message: Message, state: FSMContext) -> None:
     student_id = await check_student_id(message, state)
     if student_id is None:
@@ -725,12 +817,12 @@ async def process_update_probe(callback: CallbackQuery, state: FSMContext):
         reply_markup=kb.BACK_INLINE_KEYBOARD
     )
 
-    await state.set_state(TutorForm.setting_probe_result)
+    await state.set_state(TutorForm.editing_probe_result)
     await state.update_data(last_msg=last_msg)
     await callback.answer()
 
 
-@form_router.message(TutorForm.setting_probe_result)
+@form_router.message(TutorForm.editing_probe_result)
 async def process_update_probe_result(message: Message, state: FSMContext):
     student_id = await check_student_id(message, state)
     if student_id is None:
