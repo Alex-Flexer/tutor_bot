@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+import os
 
 from dotenv import dotenv_values
 
@@ -24,7 +25,15 @@ config = dotenv_values(".env")
 TOKEN = config["MAIN_BOT_TOKEN"]
 
 
+def set_script_dir():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(script_dir)
+    sys.path.insert(0, script_dir)
+
+
 async def main():
+    set_script_dir()
+
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
     await bot.set_my_commands(commands=BOT_COMMANDS)

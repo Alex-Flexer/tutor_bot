@@ -63,6 +63,8 @@ async def process_del_lesson(message: Message, state: FSMContext):
     lesson_id = message.text.split("_")[1]
     lessons_list_msg = await state.get_value("lessons_list_msg")
 
+    await message.delete()
+
     method = (
         message.answer
         if lessons_list_msg is None
@@ -85,7 +87,6 @@ async def process_del_lesson(message: Message, state: FSMContext):
         reply_markup=kb.BACK_INLINE_KEYBOARD
     )
 
-    await message.delete()
 
 
 # ======================================================================
@@ -615,7 +616,7 @@ async def process_delete_student(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.edit_text(
         text=(captions.STUDENT_DELETE_SUCCESS if student_deleted else captions.STUDENT_DELETE_FAILED),
-        reply_markup=kb.BACK_INLINE_KEYBOARD
+        reply_markup=kb.TRIPLE_BACK_INLINE_KEYBOARD
     )
 
     await callback.answer()

@@ -33,20 +33,23 @@ async def clear_media_group(state: FSMContext):
 
 async def get_previous_message(state: FSMContext, k=1) -> tuple[str, InlineKeyboardMarkup]:
     msg_history: deque = await state.get_value("msg_history")
+    
+    if not msg_history:
+        return (captions.CHOOSE_ROLE, kb.MAIN_MENU_INLINE_KEYBOARD)
 
     await clear_media_group(state)
+    await state.set_state()
     
     for _ in range(k - 1):
-        if not msg_history:
+        if len(msg_history) == 1:
             break
         msg_history.pop()
 
     prev_msg = (
         msg_history.pop()
-        if msg_history
-        else (captions.CHOOSE_ROLE, kb.MAIN_MENU_INLINE_KEYBOARD)
+        if len(msg_history) > 1
+        else msg_history[0]
     )
-
     await state.update_data(msg_history=msg_history)
     return prev_msg
 

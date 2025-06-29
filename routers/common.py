@@ -116,7 +116,6 @@ async def process_back(callback: CallbackQuery, state: FSMContext):
 
     text, keyboard = await get_previous_message(state, k)
     await callback.message.edit_text(text, reply_markup=keyboard)
-    await state.set_state()
     await callback.answer()
 
 
