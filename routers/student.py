@@ -726,7 +726,7 @@ async def process_start_ai_chatting(callback: CallbackQuery, state: FSMContext) 
     await save_last_message(callback.message, state)
 
     await state.set_state(StudentForm.ai_chatting)
-    await state.update_data(history=[])
+    await state.update_data(ai_history=[])
 
     await callback.message.edit_text(
         text=captions.AI_START,
