@@ -2,6 +2,7 @@ from datetime import datetime
 from queue import deque
 import secrets
 import random
+import asyncio
 import json
 import os
 
@@ -27,8 +28,8 @@ from database import utils as db_utils
 from utils import (
     keyboards as kb, captions,
     PreparationTypes, ExamTypes,
-    StudentForm, save_last_message,
-    ENV_PATH
+    StudentForm, save_last_message, make_ai_request,
+    ENV_PATH, AI_WAIT_TIME_INTERVAL
 )
 
 AI_TOKEN = dotenv.get_key(ENV_PATH, "AI_TOKEN")
@@ -36,7 +37,7 @@ AI_TOKEN = dotenv.get_key(ENV_PATH, "AI_TOKEN")
 assert AI_TOKEN is not None, "AI token is not defined"
 
 
-client = openai.OpenAI(
+client = openai.AsyncOpenAI(
     base_url="https://api.theb.ai/v1",
     api_key=AI_TOKEN
 )
@@ -729,7 +730,7 @@ async def process_start_ai_chatting(callback: CallbackQuery, state: FSMContext) 
 
     await callback.message.edit_text(
         text=captions.AI_START,
-        reply_markup=None
+        reply_markup=kb.STOP_CHATTING
     )
 
 
@@ -744,12 +745,7 @@ async def chat_with_gpt(message: Message, state: FSMContext):
     ai_history.append({"role": "user", "content": user_text})
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=ai_history
-        )
-
-        reply = response.choices[0].message.content
+        reply = await asyncio.wait_for(make_ai_request(client, ai_history), timeout=AI_WAIT_TIME_INTERVAL)
 
         ai_history.append({"role": "assistant", "content": reply})
 
@@ -759,6 +755,10 @@ async def chat_with_gpt(message: Message, state: FSMContext):
             reply_markup=kb.STOP_CHATTING
         )
         await state.set_state(StudentForm.ai_chatting)
+
+    except asyncio.TimeoutError:
+        await state.set_state()
+        await message.answer(captions.AI_WAIT_ERROR, reply_markup=kb.BACK_INLINE_KEYBOARD)
 
     except Exception as e:
         print(e)

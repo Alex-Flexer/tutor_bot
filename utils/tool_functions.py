@@ -1,7 +1,9 @@
 from queue import deque
+import asyncio
 
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, InlineKeyboardMarkup, CallbackQuery
+from openai import AsyncOpenAI
 
 from utils import captions, keyboards as kb
 from database.models import Lesson
@@ -106,3 +108,11 @@ def lessons_to_text(lessons: list[Lesson]) -> str:
 
     sep = "\n\n" + "-" * 15 + "\n\n"
     return sep.join(lessons_str)
+
+
+async def make_ai_request(client: AsyncOpenAI, ai_history: list[dict[str, str]]) -> str:
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=ai_history
+    )
+    return response.choices[0].message.content
