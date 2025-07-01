@@ -29,7 +29,8 @@ from utils import (
     keyboards as kb, captions,
     PreparationTypes, ExamTypes,
     StudentForm, save_last_message, make_ai_request,
-    ENV_PATH, AI_WAIT_TIME_INTERVAL
+    ENV_PATH, AI_WAIT_TIME_INTERVAL,
+    AI_REQUESTS_DAY_LIMIT, AI_REQUESTS_DAY_INTERVAL
 )
 
 AI_TOKEN = dotenv.get_key(ENV_PATH, "AI_TOKEN")
@@ -80,7 +81,6 @@ form_router = Router()
 # ======================================================================
 # ------------------------------TASKS BLOCK-----------------------------
 # ======================================================================
-
 
 async def show_results(message: Message, state: FSMContext) -> None:
     text = captions.YOUR_RESULT_NO_DATA + "\n\n"
@@ -154,10 +154,6 @@ async def show_variant_task(message: Message, state: FSMContext) -> None:
     photo = FSInputFile(photo_path)
     caption = captions.TASK_NUMBER.format(task_idx + 1)
 
-    if task_idx > 0:
-        last_msg = data["last_msg"]
-        await last_msg.delete()
-
     if exam_type == ExamTypes.oge:
 
         if task_idx == 0:
@@ -168,11 +164,23 @@ async def show_variant_task(message: Message, state: FSMContext) -> None:
             task_img = data["task_img"]
             await task_img.delete()
 
-    last_msg = await message.answer_photo(
-        photo=photo,
-        caption=caption,
-        reply_markup=kb.STOP_TEST_INLINE_KEYBOARD
-    )
+    if task_idx > 0 and "last_msg" in data:
+        last_msg: Message = data["last_msg"]
+
+        last_msg = await last_msg.edit_media(
+            media=InputMediaPhoto(
+                media=FSInputFile(f"./oge/{variant_idx}/{task_idx}.png"),
+                caption=caption
+            ),
+            reply_markup=kb.STOP_TEST_INLINE_KEYBOARD
+        )
+
+    else:
+        last_msg = await message.answer_photo(
+            photo=photo,
+            caption=caption,
+            reply_markup=kb.STOP_TEST_INLINE_KEYBOARD
+        )
 
     await state.update_data(last_msg=last_msg)
 
@@ -212,7 +220,7 @@ async def show_line_task(message: Message, state: FSMContext) -> None:
             )
 
         last_msg = await last_msg.edit_media(
-            InputMediaPhoto(media=photo, caption=caption),
+            media=InputMediaPhoto(media=photo, caption=caption),
             reply_markup=kb.STOP_TEST_INLINE_KEYBOARD
         )
 
@@ -413,11 +421,9 @@ async def process_stop(callback: CallbackQuery, state: FSMContext) -> None:
 
     await callback.answer()
 
-
 # ======================================================================
 # ---------------------------HOMEWORK BLOCK-----------------------------
 # ======================================================================
-
 
 @form_router.callback_query(F.data == "student_hw")
 async def process_student_hw(callback: CallbackQuery, state: FSMContext) -> None:
@@ -611,11 +617,9 @@ async def process_set_hw(callback: CallbackQuery, state: FSMContext) -> None:
     )
     await callback.answer()
 
-
 # ======================================================================
 # ----------------------------PROFILE BLOCK-----------------------------
 # ======================================================================
-
 
 @form_router.callback_query(F.data == "student_profile")
 async def process_student_profile(callback: CallbackQuery, state: FSMContext) -> None:
@@ -724,19 +728,47 @@ async def process_stop_ai_chatting(callback: CallbackQuery, state: FSMContext) -
 @form_router.callback_query(F.data == "start_ai_chatting")
 async def process_start_ai_chatting(callback: CallbackQuery, state: FSMContext) -> None: 
     await save_last_message(callback.message, state)
+    
+    ai_msg_count = await state.get_value("ai_msg_count", 0)
+    last_ai_msg_time = await state.get_value("last_ai_msg_time", datetime.now())
 
-    await state.set_state(StudentForm.ai_chatting)
-    await state.update_data(ai_history=[])
+    if datetime.now() - last_ai_msg_time > AI_REQUESTS_DAY_INTERVAL:
+        ai_msg_count = 0
+    
+    if ai_msg_count >= AI_REQUESTS_DAY_LIMIT:
+        await callback.message.edit_text(
+            text=captions.AI_MESSAGES_COUNT_DAY_LIMIT_WARNING,
+            reply_markup=kb.BACK_INLINE_KEYBOARD
+        )
 
-    await callback.message.edit_text(
-        text=captions.AI_START,
-        reply_markup=kb.STOP_CHATTING
-    )
+    else:
+        await state.set_state(StudentForm.ai_chatting)
+        await state.update_data(ai_history=[])
+
+        await callback.message.edit_text(
+            text=captions.AI_START,
+            reply_markup=kb.STOP_CHATTING
+        )
+    
+    await callback.answer()
 
 
 @form_router.message(StudentForm.ai_chatting)
 async def chat_with_gpt(message: Message, state: FSMContext):
     await state.set_state()
+    
+    ai_msg_count = await state.get_value("ai_msg_count", 0)
+    last_ai_msg_time = await state.get_value("last_ai_msg_time", datetime.now())
+
+    if datetime.now() - last_ai_msg_time > AI_REQUESTS_DAY_INTERVAL:
+        ai_msg_count = 0
+
+    if ai_msg_count >= AI_REQUESTS_DAY_LIMIT:
+        await message.answer(
+            text=captions.AI_MESSAGES_COUNT_DAY_LIMIT_WARNING,
+            reply_markup=kb.BACK_INLINE_KEYBOARD
+        )
+        return
     
     user_text = message.text if message.text is not None else message.caption
     user_text += captions.LATEX_WARNING_AI
@@ -764,3 +796,8 @@ async def chat_with_gpt(message: Message, state: FSMContext):
         print(e)
         await state.set_state()
         await message.answer(captions.AI_ERROR, reply_markup=kb.BACK_INLINE_KEYBOARD)
+
+    else:
+        ai_msg_count +=1
+        await state.update_data(ai_msg_count=ai_msg_count)
+        await state.update_data(last_ai_msg_time=datetime.now())
