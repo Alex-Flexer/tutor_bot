@@ -41,10 +41,10 @@ async def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        filename=LOG_FILE,
-        filemode="a"
+    logging.basicConfig(stream=sys.stdout
+        # level=logging.INFO,
+        # format="%(asctime)s [%(levelname)s] %(message)s",
+        # filename=LOG_FILE,
+        # filemode="a"
     )
     asyncio.run(main())

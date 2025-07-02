@@ -28,7 +28,8 @@ from database import utils as db_utils
 from utils import (
     keyboards as kb, captions,
     PreparationTypes, ExamTypes,
-    StudentForm, save_last_message, make_ai_request,
+    StudentForm, save_last_message,
+    make_ai_request, get_last_homeworks_str,
     ENV_PATH, AI_WAIT_TIME_INTERVAL,
     AI_REQUESTS_DAY_LIMIT, AI_REQUESTS_DAY_INTERVAL
 )
@@ -503,7 +504,11 @@ async def process_student_homework(callback: CallbackQuery, state: FSMContext) -
         if not comment:
             comment = captions.EMPTY_TUTOR_COMMENT
 
-        caption = captions.TUTOR_COMMENT.format(comment)
+        hw_status = db_utils.get_homework(student_id, datetime.strptime(date, "%d.%m.%Y")).passed
+        caption = captions.TUTOR_COMMENT.format(
+            html.bold(captions.GOOD_JOB if hw_status else captions.BAD_JOB),
+            comment
+        )
 
         if photos:
             media_builder = MediaGroupBuilder(caption=caption)
@@ -638,12 +643,21 @@ async def process_student_profile(callback: CallbackQuery, state: FSMContext) ->
         surname = student.surname
         student_id = student.student_id
         probe_result = student.last_probe_result
+        last_hms = get_last_homeworks_str(telegram_id=telegram_id)
+        gd_link = student.gd_link
         
         if probe_result is None:
             probe_result = "undefined"
 
         await callback.message.edit_text(
-            text=captions.PROFILE_TEXT.format(name, surname, html.code(student_id), probe_result),
+            text=captions.PROFILE_TEXT.format(
+                name,
+                surname,
+                html.code(student_id),
+                probe_result,
+                last_hms,
+                html.link(captions.GD_LINK, gd_link)
+            ),
             reply_markup=kb.STUDENT_PROFILE_INLINE_KEYBOARD
         )
 
@@ -689,8 +703,7 @@ async def process_edit_student_name(message: Message, state: FSMContext) -> None
 
     new_data = message.text
 
-    updater = getattr(db_utils, f"update_student_{mode}")
-    data_updated = updater(new_data, telegram_id=telegram_id)
+    data_updated = db_utils.update_student_data(mode, new_data, telegram_id=telegram_id)
 
     text = captions.DATA_UPDATED_SUCCESS if data_updated else captions.DATA_UPDATED_FAILED
 

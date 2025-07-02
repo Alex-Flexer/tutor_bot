@@ -1,12 +1,13 @@
 from queue import deque
 import asyncio
 
+from aiogram import html
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, InlineKeyboardMarkup, CallbackQuery
 from openai import AsyncOpenAI
 
 from utils import captions, keyboards as kb
-from database.models import Lesson
+from database import utils as db_utils, Lesson
 
 
 async def save_last_message(message: Message, state: FSMContext):
@@ -116,3 +117,18 @@ async def make_ai_request(client: AsyncOpenAI, ai_history: list[dict[str, str]])
         messages=ai_history
     )
     return response.choices[0].message.content
+
+
+def get_last_homeworks_str(**kwargs):
+    homeworks = db_utils.get_last_checked_homeworks(**kwargs)
+
+    if not homeworks:
+        return captions.EMPTY
+
+    return "\n".join(
+        captions.PARENT_HW_DATE_STATUS.format(
+            hw.date_setting_homework.strftime("%d.%m.%Y"),
+            html.bold(captions.GOOD_JOB if hw.passed else captions.BAD_JOB)
+        )
+        for hw in homeworks
+    )

@@ -180,6 +180,14 @@ TUTOR_OPTION_INLINE_KEYBOARD = InlineKeyboardMarkup(
     ]
 )
 
+TUTOR_SET_HW_STATUS_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Хорошо", callback_data="tutor_set_hw_status_good"),
+         InlineKeyboardButton(text="Плохо", callback_data="tutor_set_hw_status_bad")],
+        [BACK_INLINE_BUTTON]
+    ]
+)
+
 TUTOR_STUDENT_OPTIONS_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Удалить ученика", callback_data="tutor_delete_student")],
@@ -202,6 +210,7 @@ TUTOR_EDIT_STUDENT_PROFILE_INLINE_KEYBOARD = InlineKeyboardMarkup(
         [InlineKeyboardButton(text="Имя", callback_data="tutor_edit_student_name"),
          InlineKeyboardButton(text="Фамилия", callback_data="tutor_edit_student_surname")],
         [InlineKeyboardButton(text="Обновить результаты пробника", callback_data="tutor_update_probe")],
+        [InlineKeyboardButton(text="Изменить ссылку на GoogleDisk", callback_data="tutor_edit_student_gd_link")],
         [BACK_INLINE_BUTTON]
     ]
 )

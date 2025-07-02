@@ -78,7 +78,7 @@ def add_lesson(session: Session, telegram_username: str, email: str = None, othe
 
 @_catch_except()
 @_post_commit
-def add_student(session: Session, telegram_id: int, name: str | None = None, surname: str | None = None) -> bool:
+def add_student(session: Session, telegram_id: int, gd_link: str, name: str | None = None, surname: str | None = None) -> bool:
     name = "undefined" if name is None else name
     surname = "undefined" if surname is None else surname
 
@@ -87,7 +87,9 @@ def add_student(session: Session, telegram_id: int, name: str | None = None, sur
         name=name,
         surname=surname,
         telegram_id=telegram_id,
-        student_id=student_id)
+        student_id=student_id,
+        gd_link=gd_link
+        )
     )
     return True
 
@@ -178,8 +180,9 @@ def set_submitted_homework(session: Session, student_id: str, homework_date: dat
 
 @_catch_except()
 @_post_commit
-def set_checked_homework(session: Session, student_id: str, homework_date: datetime) -> bool:
+def set_checked_homework(session: Session, student_id: str, homework_date: datetime, passed: bool) -> bool:
     if not check_student_exists(student_id=student_id):
+        print("iii")
         return False
 
     student_id = get_student(student_id=student_id).id
@@ -190,19 +193,42 @@ def set_checked_homework(session: Session, student_id: str, homework_date: datet
         .query(Homework)\
         .filter_by(
             student_id=student_id,
-            date_setting_homework=homework_date
+            date_setting_homework=homework_date,
         ).first()
 
     if homework is None:
+        print("ppppppp")
         return False
 
+    homework.passed = passed
     homework.checked = True
     return True
+
+
+@_catch_except()
+@_auto_session
+def get_last_checked_homeworks(session: Session, k=3, **kwargs) -> list[Homework] | None:
+    student = _get_student(session, **kwargs)
+    if student is None:
+        return None
+
+    return sorted(
+        [hw for hw in student.homeworks if hw.checked],
+        key=lambda hw: hw.date_setting_homework,
+        reverse=True
+    )[:k]
+    print("good")
 
 
 @_auto_session
 def get_student(session: Session, **kwargs) -> Student | None:
     return session.query(Student).filter_by(**kwargs).first()
+
+
+@_auto_session
+def get_homework(session: Session, student_id: str, date: datetime) -> Homework | None:
+    student = get_student(student_id=student_id)
+    return session.query(Homework).filter_by(student_id=student.id, date_setting_homework=date).first()
 
 
 def _get_student(session: Session, **kwargs) -> Student | None:
@@ -211,33 +237,12 @@ def _get_student(session: Session, **kwargs) -> Student | None:
 
 @_catch_except()
 @_post_commit
-def update_student_name(session: Session, name: str, **kwargs) -> bool | None:
+def update_student_data(session: Session, key: str, value: str | int, **kwargs) -> bool | None:
     student = _get_student(session, **kwargs)
     if student is None:
         return None
 
-    student.name = name
-    return True
-
-
-@_catch_except()
-@_post_commit
-def update_probe_result(session: Session, probe_result: str, **kwargs) -> bool | None:
-    student = _get_student(session, **kwargs)
-    if student is None:
-        return None
-
-    student.last_probe_result = probe_result
-    return True
-
-@_catch_except()
-@_post_commit
-def update_student_surname(session: Session, surname: str, **kwargs) -> bool | None:
-    student = _get_student(session, **kwargs)
-    if student is None:
-        return None
-
-    student.surname = surname
+    session.query(Student).update({key: value})
     return True
 
 

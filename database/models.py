@@ -45,6 +45,8 @@ class Student(Base):
     student_id = Column(String(10), nullable=False, unique=True)
 
     last_probe_result = Column(Integer)
+    
+    gd_link = Column(String(255), nullable=False)
 
     homeworks = relationship("Homework", back_populates="student")
 
@@ -62,6 +64,8 @@ class Homework(Base):
 
     submitted = Column(Boolean, default=False)
     checked = Column(Boolean, default=False)
+    
+    passed = Column(Boolean)
 
     __table_args__ = (
         UniqueConstraint(

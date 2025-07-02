@@ -21,7 +21,8 @@ from database import utils as db_utils, Lesson
 from utils import (
     keyboards as kb, captions,
     ParentForm,
-    save_last_message,lessons_to_text
+    save_last_message,lessons_to_text,
+    get_last_homeworks_str
 )
 
 form_router = Router()
@@ -163,12 +164,16 @@ async def process_input_sk(message: Message, state: FSMContext):
             )
             await state.update_data(last_msg=last_msg)
     else:
+        homeworks_str = get_last_homeworks_str(student_id=student_id)
+
         await method(
             text=captions.PARENT_STUDENT_PROFILE_TEXT.format(
                 student.name,
                 student.surname,
                 html.code(student.student_id),
-                "undefined" if student.last_probe_result is None else student.last_probe_result
+                "undefined" if student.last_probe_result is None else student.last_probe_result,
+                homeworks_str,
+                html.link(captions.GD_LINK, student.gd_link)
             ),
             reply_markup=kb.BACK_INLINE_KEYBOARD
         )

@@ -21,7 +21,8 @@ from utils import (
     keyboards as kb, captions,
     TutorForm,
     save_last_message, clear_media_group,
-    lessons_to_text, check_student_id, check_value_empty,
+    lessons_to_text, check_student_id,
+    check_value_empty, get_last_homeworks_str,
     ENV_PATH
 )
 
@@ -158,9 +159,19 @@ async def process_choose_check_task_date(callback: CallbackQuery, state: FSMCont
         return
 
     await save_last_message(callback.message, state)
-
+    
     mode = "submitted"
+
     date = callback.data.removeprefix("homework_tutor_check_")
+    await state.update_data(hw_date=date)
+    
+    if date is None:
+        await callback.message.edit_text(
+            text=captions.CHOOSE_DATE,
+            reply_markup=kb.get_dates_in_month_inline_keyboard()
+        )
+        await callback.answer()
+        return
 
     images_path = db_utils.IMAGES_PATH.format(student_id, date, mode)
     photos = os.listdir(images_path)
@@ -190,6 +201,24 @@ async def process_choose_check_task_date(callback: CallbackQuery, state: FSMCont
         media_group = await callback.message.answer(caption)
 
     await state.update_data(media_group=media_group)
+    
+    await callback.message.delete()
+    await callback.message.answer(
+        text=captions.SET_HW_STATUS,
+        reply_markup=kb.TUTOR_SET_HW_STATUS_INLINE_KEYBOARD
+    )
+
+    await callback.answer()
+
+
+@form_router.callback_query(F.data.startswith("tutor_set_hw_status_"))
+async def process_choose_check_task_date(callback: CallbackQuery, state: FSMContext):
+    student_id = await check_student_id(callback, state)
+    if student_id is None:
+        return
+    
+    status = callback.data.removeprefix("tutor_set_hw_status_")
+    await state.update_data(hw_status=status)
 
     feedback_text_message = await callback.message.answer(
         text=captions.SUBMIT_FEEDBACK,
@@ -198,7 +227,6 @@ async def process_choose_check_task_date(callback: CallbackQuery, state: FSMCont
 
     await state.update_data(feedback_text_message=feedback_text_message)
 
-    await state.update_data(hw_date=date)
     await state.set_state(TutorForm.checking_hw)
 
     await callback.message.delete()
@@ -359,6 +387,7 @@ async def process_upload_feedback(message: Message, state: FSMContext):
         await state.set_state()
 
     hw_date = await state.get_value("hw_date")
+    hw_status = await state.get_value("hw_status")
     last_mgid = await state.get_value("last_mgid")
     hw_submitted = await state.get_value("hw_submitted")
     feedback_text_message = await state.get_value("feedback_text_message")
@@ -374,7 +403,8 @@ async def process_upload_feedback(message: Message, state: FSMContext):
     if hw_submitted is None:
         hw_submitted = db_utils.set_checked_homework(
             student_id=student_id,
-            homework_date=datetime.strptime(hw_date, "%d.%m.%Y")
+            homework_date=datetime.strptime(hw_date, "%d.%m.%Y"),
+            passed=(hw_status == "good")
         )
 
         await state.update_data(hw_submitted=hw_submitted)
@@ -427,7 +457,7 @@ async def process_upload_feedback(message: Message, state: FSMContext):
     try:
         feedback_text_message = await method(
             text=caption,
-            reply_markup=kb.BACK_INLINE_KEYBOARD
+            reply_markup=kb.DOUBLE_BACK_INLINE_KEYBOARD
         )
     except TelegramBadRequest:
         pass
@@ -681,6 +711,72 @@ async def process_set_student_username(message: Message, state: FSMContext):
                 reply_markup=kb.BACK_INLINE_KEYBOARD
             )
             await state.update_data(last_msg=last_msg)
+
+    else:
+        last_msg = await method(
+            text=captions.TUTOR_EDIT_STUDENT_GD_LINK,
+            reply_markup=None
+        )
+
+        await state.set_state(TutorForm.setting_student_gd_link)
+        await state.update_data(last_msg=last_msg, student_surname=surname)
+
+    await message.delete()
+
+
+@form_router.message(TutorForm.setting_student_gd_link)
+async def process_set_student_username(message: Message, state: FSMContext):
+    last_msg = await state.get_value("last_msg")
+    method = message.answer if last_msg is None else last_msg.edit_text
+
+    student_id = await check_value_empty(
+        method=method,
+        state=state,
+        key="student_id",
+        text=captions.SET_STUDENT_TELEGRAM_ID,
+        keyboard=kb.BACK_INLINE_KEYBOARD
+    )
+
+    if student_id is None:
+        await state.set_state(TutorForm.setting_student_id)
+        await message.delete()
+        return
+    
+    name = await check_value_empty(
+        method=method,
+        state=state,
+        key="student_name",
+        text=captions.EDIT_STUDENT_NAME,
+        keyboard=kb.BACK_INLINE_KEYBOARD
+    )
+
+    if name is None:
+        await state.set_state(TutorForm.setting_student_name)
+        await message.delete()
+        return
+
+    surname = await check_value_empty(
+        method=method,
+        state=state,
+        key="student_surname",
+        text=captions.EDIT_STUDENT_NAME,
+        keyboard=kb.BACK_INLINE_KEYBOARD
+    )
+
+    if surname is None:
+        await state.set_state(TutorForm.setting_student_surname)
+        await message.delete()
+        return
+
+    gd_link = message.text.strip() if message.text is not None else message.caption.strip()
+
+    if len(surname) > 150:
+        if last_msg is None or last_msg.text != captions.INCORRECT_STUDENT_DATA:
+            last_msg = await method(
+                text=captions.INCORRECT_STUDENT_DATA,
+                reply_markup=kb.BACK_INLINE_KEYBOARD
+            )
+            await state.update_data(last_msg=last_msg)
     else:
         await state.set_state()
         await state.update_data(
@@ -689,7 +785,7 @@ async def process_set_student_username(message: Message, state: FSMContext):
             student_surname=None
         )
 
-        student_added = db_utils.add_student(telegram_id=student_id, name=name, surname=surname)
+        student_added = db_utils.add_student(student_id, gd_link, name, surname)
 
         await method(
             text=(captions.STUDENT_ADD_SUCCESS
@@ -730,20 +826,25 @@ async def process_student_profile(callback: CallbackQuery, state: FSMContext) ->
     await save_last_message(callback.message, state)
 
     student = db_utils.get_student(student_id=student_id)
-
-    name = student.name
-    surname = student.surname
-
     probe_result = student.last_probe_result
 
     if probe_result is None:
         probe_result = "undefined"
+        
+    print("baba")
 
     await callback.message.edit_text(
         text=captions.STUDENT_PROFILE_TEXT.format(
-            name, surname, html.code(student_id), probe_result),
+            student.name,
+            student.surname,
+            html.code(student_id),
+            probe_result,
+            student.gd_link
+        ), 
         reply_markup=kb.TUTOR_EDIT_STUDENT_PROFILE_INLINE_KEYBOARD
     )
+    
+    print("huhu")
 
     await callback.answer()
 
@@ -771,14 +872,13 @@ async def process_edit_student_data(callback: CallbackQuery, state: FSMContext) 
 
         await state.update_data(edit_student_profile_msg=edit_student_profile_msg)
 
-    new_state = getattr(TutorForm, f"setting_student_{mode}")
-    print(new_state, type(new_state))
+    new_state = getattr(TutorForm, f"editing_student_{mode}")
     await state.set_state(new_state)
 
     await callback.answer()
 
 
-@form_router.message(StateFilter(TutorForm.editing_student_name, TutorForm.editing_student_surname))
+@form_router.message(StateFilter(TutorForm.editing_student_name, TutorForm.editing_student_surname, TutorForm.editing_student_gd_link))
 async def process_edit_student_name(message: Message, state: FSMContext) -> None:
     student_id = await check_student_id(message, state)
     if student_id is None:
@@ -786,12 +886,13 @@ async def process_edit_student_name(message: Message, state: FSMContext) -> None
 
     full_state = await state.get_state()
     mode = full_state.split('_')[-1]
+    if mode == "link":
+        mode = "gd_link"
 
     edit_student_profile_msg = await state.get_value("edit_student_profile_msg")
     new_data = message.text
 
-    updater = getattr(db_utils, f"update_student_{mode}")
-    data_updated = updater(new_data, student_id=student_id)
+    data_updated = db_utils.update_student_data(mode, new_data, student_id=student_id)
 
     text = captions.DATA_UPDATED_SUCCESS if data_updated else captions.DATA_UPDATED_FAILED
 
@@ -845,7 +946,7 @@ async def process_update_probe_result(message: Message, state: FSMContext):
     new_result = message.text
     if new_result.isdecimal() and int(new_result) <= 1000:
         new_result = int(new_result)
-        probe_result_updated = db_utils.update_probe_result(new_result, student_id=student_id)
+        probe_result_updated = db_utils.update_student_data("last_probe_result", new_result, student_id=student_id)
 
         text = captions.DATA_UPDATED_SUCCESS if probe_result_updated else captions.DATA_UPDATED_FAILED
 
