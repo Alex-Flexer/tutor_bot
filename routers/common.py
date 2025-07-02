@@ -24,7 +24,7 @@ form_router = Router()
 
 
 @form_router.message(CommandStart())
-async def command_start(message: Message) -> None:
+async def command_start(message: Message, state: FSMContext) -> None:
     parts = message.text.split()
     if len(parts) == 2:
         user_sk = parts[1]
