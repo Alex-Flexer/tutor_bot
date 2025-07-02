@@ -499,6 +499,8 @@ async def process_select_homework_date(callback: CallbackQuery, state: FSMContex
     student_id = await check_student_id(callback, state)
     if student_id is None:
         return
+    
+    await save_last_message(callback.message, state)
 
     date_str = callback.data.removeprefix("tutor_check_homework_")
     mode = "homework"
@@ -511,7 +513,7 @@ async def process_select_homework_date(callback: CallbackQuery, state: FSMContex
     if not comment:
         comment = captions.EMPTY_TUTOR_COMMENT
 
-    caption = captions.TUTOR_COMMENT.format(comment)
+    caption = captions.HOMEWORK_TUTOR_COMMENT.format(comment)
 
     if photos:
         media_builder = MediaGroupBuilder(caption=caption)

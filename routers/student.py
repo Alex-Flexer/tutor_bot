@@ -505,10 +505,14 @@ async def process_student_homework(callback: CallbackQuery, state: FSMContext) -
             comment = captions.EMPTY_TUTOR_COMMENT
 
         hw_status = db_utils.get_homework(student_id, datetime.strptime(date, "%d.%m.%Y")).passed
-        caption = captions.TUTOR_COMMENT.format(
-            html.bold(captions.GOOD_JOB if hw_status else captions.BAD_JOB),
-            comment
-        )
+        
+        if mode == "homework":
+            caption = captions.HOMEWORK_TUTOR_COMMENT.format(comment)
+        else:
+            caption = captions.TUTOR_COMMENT.format(
+                html.bold(captions.GOOD_JOB if hw_status else captions.BAD_JOB),
+                comment
+            )
 
         if photos:
             media_builder = MediaGroupBuilder(caption=caption)

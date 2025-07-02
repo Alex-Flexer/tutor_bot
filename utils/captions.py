@@ -94,6 +94,10 @@ TUTOR_COMMENT = """Общая оценка: {}
 
 {}"""
 
+HOMEWORK_TUTOR_COMMENT = """Комментарий куратора:
+
+{}"""
+
 EMPTY_TUTOR_COMMENT = "Куратор не оставил комментария."
 
 HW_SUBMITTED_SUCCESS = "Домашнее задание успешно отправлено."
