@@ -3,6 +3,7 @@ from queue import deque
 
 import dotenv
 import secrets
+import asyncio
 
 from aiogram import Router, F, html
 from aiogram.filters import Command, CommandStart
@@ -14,6 +15,7 @@ from database import utils as db_utils
 from utils import (
     keyboards as kb, captions,
     save_last_message, get_previous_message,
+    send_mailing,
     ENV_PATH
 )
 
@@ -98,14 +100,17 @@ async def process_i_am(callback: CallbackQuery, state: FSMContext) -> None:
         telegram_id = callback.from_user.id
 
         if not db_utils.check_student_exists(telegram_id=telegram_id):
-            text=captions.NOT_STUDENT.format(html.code(telegram_id))
-            reply_markup=kb.BACK_INLINE_KEYBOARD
+            asyncio.create_task(send_mailing(callback))
+            
+            text = captions.NOT_STUDENT.format(html.code(telegram_id))
+            reply_markup = kb.BACK_INLINE_KEYBOARD
+
         else:
-            text=captions.CHOOSE_STUDENT
-            reply_markup=kb.STUDENT_MENU_INLINE_KEYBOARD
+            text = captions.CHOOSE_STUDENT
+            reply_markup = kb.STUDENT_MENU_INLINE_KEYBOARD
 
     else:
-        text=captions.CHOOSE_OPTION
+        text = captions.CHOOSE_OPTION
         reply_markup = kb.PARENT_MENU_INLINE_KEYBOARD
         
     await method(text=text, reply_markup=reply_markup)

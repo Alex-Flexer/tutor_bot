@@ -7,6 +7,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, CallbackQuery
 from openai import AsyncOpenAI
 
 from utils import captions, keyboards as kb
+from utils.config import MAILING_DELAY
 from database import utils as db_utils, Lesson
 
 
@@ -132,3 +133,14 @@ def get_last_homeworks_str(**kwargs):
         )
         for hw in homeworks
     )
+
+
+async def send_mailing(callback: CallbackQuery):
+    await asyncio.sleep(MAILING_DELAY)
+
+    telegram_id = callback.from_user.id
+    if not db_utils.check_student_exists(telegram_id=telegram_id):
+        await callback.message.answer(
+            text=captions.DISCOUNT_TEXT,
+            reply_markup=kb.CONTACTS_INLINE_KEYBOARD
+        )

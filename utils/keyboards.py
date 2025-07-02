@@ -34,6 +34,10 @@ TRIPLE_BACK_INLINE_KEYBOARD = InlineKeyboardMarkup(inline_keyboard=[[InlineKeybo
 # ----------------------------STUDENT BLOCK-----------------------------
 # ======================================================================
 
+CONTACTS_INLINE_KEYBOARD = InlineKeyboardMarkup(
+    inline_keyboard=[[InlineKeyboardButton(text="Контакты", url="https://t.me/NikitaAlekseevichh")]],
+)
+
 STOP_TEST_INLINE_KEYBOARD = InlineKeyboardMarkup(
     inline_keyboard=[[InlineKeyboardButton(text="Стоп", callback_data="test_stop")]],
 )
