@@ -7,4 +7,4 @@ EPS_MSG_TIME_INTERVAL = timedelta(seconds=3)
 AI_WAIT_TIME_INTERVAL = 12
 AI_REQUESTS_DAY_LIMIT = 50
 AI_REQUESTS_DAY_INTERVAL = timedelta(days=1)
-MAILING_DELAY = timedelta(weeks=1).seconds
+MAILING_DELAY = timedelta(weeks=1).total_seconds()
