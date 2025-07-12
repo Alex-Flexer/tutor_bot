@@ -170,7 +170,7 @@ async def show_variant_task(message: Message, state: FSMContext) -> None:
 
         last_msg = await last_msg.edit_media(
             media=InputMediaPhoto(
-                media=FSInputFile(f"./oge/{variant_idx}/{task_idx}.png"),
+                media=photo,
                 caption=caption
             ),
             reply_markup=kb.STOP_TEST_INLINE_KEYBOARD
@@ -413,11 +413,11 @@ async def process_stop(callback: CallbackQuery, state: FSMContext) -> None:
         )
 
     msg_history = await state.get_value("msg_history")
+    exam_type = await state.get_value("exam_type")
 
-    await state.clear()
+    # await state.clear()
     await state.update_data(
-        answers=[],
-        msg_history=msg_history
+        answers=[]
     )
 
     await callback.answer()
