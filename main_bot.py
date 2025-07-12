@@ -9,8 +9,8 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand
 
-
 from routers import common_router, student_router, tutor_router, parent_router
+from utils.logger import BotLoggingMiddleware
 
 
 BOT_COMMANDS = [
@@ -27,11 +27,15 @@ LOG_FILE = config["LOG_FILE_PATH"]
 
 
 async def main():
+
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
     await bot.set_my_commands(commands=BOT_COMMANDS)
 
     dp = Dispatcher()
+    
+    dp.update.outer_middleware(BotLoggingMiddleware())
+    
     dp.include_router(tutor_router)
     dp.include_router(student_router)
     dp.include_router(common_router)
@@ -44,6 +48,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%d.%m.%Y %H:%M:%S",
         filename=LOG_FILE,
         filemode="a"
     )
