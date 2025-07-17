@@ -1,10 +1,8 @@
 import asyncio
-import sys
-from secrets import token_urlsafe
 
-from dotenv import dotenv_values, set_key, get_key
+from dotenv import dotenv_values, get_key
 
-from aiogram import Bot, Dispatcher, Router, html
+from aiogram import Bot, Dispatcher, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand, Message

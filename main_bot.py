@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import sys
 
 from dotenv import dotenv_values
 
@@ -33,9 +32,9 @@ async def main():
     await bot.set_my_commands(commands=BOT_COMMANDS)
 
     dp = Dispatcher()
-    
+
     dp.update.outer_middleware(BotLoggingMiddleware())
-    
+
     dp.include_router(tutor_router)
     dp.include_router(student_router)
     dp.include_router(common_router)

@@ -3,8 +3,6 @@ import secrets
 import asyncio
 import os
 
-import dotenv
-
 from aiogram import Router, F, html
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
@@ -22,8 +20,7 @@ from utils import (
     TutorForm,
     save_last_message, clear_media_group,
     lessons_to_text, check_student_id,
-    check_value_empty, get_last_homeworks_str,
-    ENV_PATH
+    check_value_empty
 )
 
 
@@ -87,7 +84,6 @@ async def process_del_lesson(message: Message, state: FSMContext):
         text=new_text,
         reply_markup=kb.BACK_INLINE_KEYBOARD
     )
-
 
 
 # ======================================================================
@@ -159,12 +155,12 @@ async def process_choose_check_task_date(callback: CallbackQuery, state: FSMCont
         return
 
     await save_last_message(callback.message, state)
-    
+
     mode = "submitted"
 
     date = callback.data.removeprefix("homework_tutor_check_")
     await state.update_data(hw_date=date)
-    
+
     if date is None:
         await callback.message.edit_text(
             text=captions.CHOOSE_DATE,
@@ -201,7 +197,7 @@ async def process_choose_check_task_date(callback: CallbackQuery, state: FSMCont
         media_group = await callback.message.answer(caption)
 
     await state.update_data(media_group=media_group)
-    
+
     await callback.message.delete()
     await callback.message.answer(
         text=captions.SET_HW_STATUS,
@@ -216,7 +212,7 @@ async def process_choose_check_task_date(callback: CallbackQuery, state: FSMCont
     student_id = await check_student_id(callback, state)
     if student_id is None:
         return
-    
+
     status = callback.data.removeprefix("tutor_set_hw_status_")
     await state.update_data(hw_status=status)
 
@@ -499,7 +495,7 @@ async def process_select_homework_date(callback: CallbackQuery, state: FSMContex
     student_id = await check_student_id(callback, state)
     if student_id is None:
         return
-    
+
     await save_last_message(callback.message, state)
 
     date_str = callback.data.removeprefix("tutor_check_homework_")
@@ -543,6 +539,7 @@ async def process_select_homework_date(callback: CallbackQuery, state: FSMContex
 # ======================================================================
 # -----------------------------STUDENT BLOCK---------------------------
 # ======================================================================
+
 
 @form_router.callback_query(F.data == "tutor_students")
 async def process_tutor_students(callback: CallbackQuery, state: FSMContext):
@@ -690,7 +687,7 @@ async def process_set_student_username(message: Message, state: FSMContext):
         await state.set_state(TutorForm.setting_student_id)
         await message.delete()
         return
-    
+
     name = await check_value_empty(
         method=method,
         state=state,
@@ -743,7 +740,7 @@ async def process_set_student_username(message: Message, state: FSMContext):
         await state.set_state(TutorForm.setting_student_id)
         await message.delete()
         return
-    
+
     name = await check_value_empty(
         method=method,
         state=state,
@@ -832,7 +829,7 @@ async def process_student_profile(callback: CallbackQuery, state: FSMContext) ->
 
     if probe_result is None:
         probe_result = "undefined"
-        
+
     print("baba")
 
     await callback.message.edit_text(
@@ -842,10 +839,10 @@ async def process_student_profile(callback: CallbackQuery, state: FSMContext) ->
             html.code(student_id),
             probe_result,
             student.gd_link
-        ), 
+        ),
         reply_markup=kb.TUTOR_EDIT_STUDENT_PROFILE_INLINE_KEYBOARD
     )
-    
+
     print("huhu")
 
     await callback.answer()
@@ -948,7 +945,8 @@ async def process_update_probe_result(message: Message, state: FSMContext):
     new_result = message.text
     if new_result.isdecimal() and int(new_result) <= 1000:
         new_result = int(new_result)
-        probe_result_updated = db_utils.update_student_data("last_probe_result", new_result, student_id=student_id)
+        probe_result_updated = db_utils.update_student_data(
+            "last_probe_result", new_result, student_id=student_id)
 
         text = captions.DATA_UPDATED_SUCCESS if probe_result_updated else captions.DATA_UPDATED_FAILED
 
@@ -966,4 +964,3 @@ async def process_update_probe_result(message: Message, state: FSMContext):
         )
 
     await message.delete()
-

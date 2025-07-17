@@ -83,6 +83,7 @@ form_router = Router()
 # ------------------------------TASKS BLOCK-----------------------------
 # ======================================================================
 
+
 async def show_results(message: Message, state: FSMContext) -> None:
     text = captions.YOUR_RESULT_NO_DATA + "\n\n"
 
@@ -426,6 +427,7 @@ async def process_stop(callback: CallbackQuery, state: FSMContext) -> None:
 # ---------------------------HOMEWORK BLOCK-----------------------------
 # ======================================================================
 
+
 @form_router.callback_query(F.data == "student_hw")
 async def process_student_hw(callback: CallbackQuery, state: FSMContext) -> None:
     await save_last_message(callback.message, state)
@@ -505,7 +507,7 @@ async def process_student_homework(callback: CallbackQuery, state: FSMContext) -
             comment = captions.EMPTY_TUTOR_COMMENT
 
         hw_status = db_utils.get_homework(student_id, datetime.strptime(date, "%d.%m.%Y")).passed
-        
+
         if mode == "homework":
             caption = captions.HOMEWORK_TUTOR_COMMENT.format(comment)
         else:
@@ -630,6 +632,7 @@ async def process_set_hw(callback: CallbackQuery, state: FSMContext) -> None:
 # ----------------------------PROFILE BLOCK-----------------------------
 # ======================================================================
 
+
 @form_router.callback_query(F.data == "student_profile")
 async def process_student_profile(callback: CallbackQuery, state: FSMContext) -> None:
     await save_last_message(callback.message, state)
@@ -649,7 +652,7 @@ async def process_student_profile(callback: CallbackQuery, state: FSMContext) ->
         probe_result = student.last_probe_result
         last_hms = get_last_homeworks_str(telegram_id=telegram_id)
         gd_link = student.gd_link
-        
+
         if probe_result is None:
             probe_result = "undefined"
 
@@ -731,8 +734,9 @@ async def process_edit_student_name(message: Message, state: FSMContext) -> None
 # ---------------------------STUDENT (AI) BLOCK-------------------------
 # ======================================================================
 
+
 @form_router.callback_query(F.data == "stop_ai_chatting", StudentForm.ai_chatting)
-async def process_stop_ai_chatting(callback: CallbackQuery, state: FSMContext) -> None: 
+async def process_stop_ai_chatting(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state()
     await callback.message.edit_reply_markup(reply_markup=None)
 
@@ -743,15 +747,15 @@ async def process_stop_ai_chatting(callback: CallbackQuery, state: FSMContext) -
 
 
 @form_router.callback_query(F.data == "start_ai_chatting")
-async def process_start_ai_chatting(callback: CallbackQuery, state: FSMContext) -> None: 
+async def process_start_ai_chatting(callback: CallbackQuery, state: FSMContext) -> None:
     await save_last_message(callback.message, state)
-    
+
     ai_msg_count = await state.get_value("ai_msg_count", 0)
     last_ai_msg_time = await state.get_value("last_ai_msg_time", datetime.now())
 
     if datetime.now() - last_ai_msg_time > AI_REQUESTS_DAY_INTERVAL:
         ai_msg_count = 0
-    
+
     if ai_msg_count >= AI_REQUESTS_DAY_LIMIT:
         await callback.message.edit_text(
             text=captions.AI_MESSAGES_COUNT_DAY_LIMIT_WARNING,
@@ -766,14 +770,14 @@ async def process_start_ai_chatting(callback: CallbackQuery, state: FSMContext) 
             text=captions.AI_START,
             reply_markup=kb.STOP_CHATTING
         )
-    
+
     await callback.answer()
 
 
 @form_router.message(StudentForm.ai_chatting)
 async def chat_with_gpt(message: Message, state: FSMContext):
     await state.set_state()
-    
+
     ai_msg_count = await state.get_value("ai_msg_count", 0)
     last_ai_msg_time = await state.get_value("last_ai_msg_time", datetime.now())
 
@@ -786,7 +790,7 @@ async def chat_with_gpt(message: Message, state: FSMContext):
             reply_markup=kb.BACK_INLINE_KEYBOARD
         )
         return
-    
+
     user_text = message.text if message.text is not None else message.caption
     user_text += captions.LATEX_WARNING_AI
 
@@ -815,6 +819,6 @@ async def chat_with_gpt(message: Message, state: FSMContext):
         await message.answer(captions.AI_ERROR, reply_markup=kb.BACK_INLINE_KEYBOARD)
 
     else:
-        ai_msg_count +=1
+        ai_msg_count += 1
         await state.update_data(ai_msg_count=ai_msg_count)
         await state.update_data(last_ai_msg_time=datetime.now())

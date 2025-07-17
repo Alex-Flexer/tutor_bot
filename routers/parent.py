@@ -1,27 +1,17 @@
-from datetime import datetime
-import asyncio
-import secrets
-import os
 import re
-
-import dotenv
 
 from aiogram import Router, F, html
 from aiogram.fsm.context import FSMContext
-from aiogram.filters import StateFilter
-from aiogram.utils.media_group import MediaGroupBuilder
-from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import (
     Message,
-    FSInputFile,
     CallbackQuery
 )
 
-from database import utils as db_utils, Lesson
+from database import utils as db_utils
 from utils import (
     keyboards as kb, captions,
     ParentForm,
-    save_last_message,lessons_to_text,
+    save_last_message,
     get_last_homeworks_str
 )
 
@@ -31,15 +21,16 @@ form_router = Router()
 # ------------------------------LESSON BLOCK----------------------------
 # ======================================================================
 
+
 @form_router.callback_query(F.data == "parent_sign_up_lesson")
 async def process_student_info(callback: CallbackQuery, state: FSMContext):
     await save_last_message(callback.message, state)
-    
+
     last_msg = await callback.message.edit_text(
         text=captions.INPUT_EMAIL,
         reply_markup=kb.ADD_LESSON_INLINE_KEYBOARD
     )
-    
+
     await state.update_data(last_msg=last_msg)
     await state.set_state(ParentForm.inputting_email)
 
@@ -55,7 +46,7 @@ async def process_input_sk(message: Message, state: FSMContext):
 
     last_msg = await state.get_value("last_msg")
     method = message.answer if last_msg is None else last_msg.edit_text
-    
+
     email = message.text
     username = '@' + message.from_user.username
 
@@ -77,7 +68,7 @@ async def process_input_sk(message: Message, state: FSMContext):
             ),
             reply_markup=kb.BACK_INLINE_KEYBOARD
         )
-        
+
         await state.set_state()
 
     await message.delete()
@@ -86,12 +77,12 @@ async def process_input_sk(message: Message, state: FSMContext):
 @form_router.callback_query(F.data == "another_way_sign_up_lesson")
 async def process_student_info(callback: CallbackQuery, state: FSMContext):
     await save_last_message(callback.message, state)
-    
+
     last_msg = await callback.message.edit_text(
         text=captions.INPUT_CONTACT_DATA,
         reply_markup=kb.DOUBLE_BACK_INLINE_KEYBOARD
     )
-    
+
     await state.update_data(last_msg=last_msg)
     await state.set_state(ParentForm.inputting_other_data)
 
@@ -102,7 +93,7 @@ async def process_student_info(callback: CallbackQuery, state: FSMContext):
 async def process_input_sk(message: Message, state: FSMContext):
     last_msg = await state.get_value("last_msg")
     method = message.answer if last_msg is None else last_msg.edit_text
-    
+
     other_data = message.text
     username = '@' + message.from_user.username
 
@@ -136,12 +127,12 @@ async def process_input_sk(message: Message, state: FSMContext):
 @form_router.callback_query(F.data == "parent_student_info")
 async def process_student_info(callback: CallbackQuery, state: FSMContext):
     await save_last_message(callback.message, state)
-    
+
     last_msg = await callback.message.edit_text(
         text=captions.PARENT_INPUT_STUDENT_ID,
         reply_markup=kb.BACK_INLINE_KEYBOARD
     )
-    
+
     await state.update_data(last_msg=last_msg)
     await state.set_state(ParentForm.inputting_student_id)
 
@@ -152,7 +143,7 @@ async def process_student_info(callback: CallbackQuery, state: FSMContext):
 async def process_input_sk(message: Message, state: FSMContext):
     last_msg = await state.get_value("last_msg")
     method = message.answer if last_msg is None else last_msg.edit_text
-    
+
     student_id = message.text
     student = db_utils.get_student(student_id=student_id)
 
@@ -179,4 +170,3 @@ async def process_input_sk(message: Message, state: FSMContext):
         )
 
     await message.delete()
-

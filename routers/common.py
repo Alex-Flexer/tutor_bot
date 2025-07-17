@@ -1,4 +1,3 @@
-from datetime import datetime
 from queue import deque
 
 import dotenv
@@ -14,7 +13,7 @@ from aiogram.fsm.context import FSMContext
 from database import utils as db_utils
 from utils import (
     keyboards as kb, captions,
-    save_last_message, get_previous_message,
+    get_previous_message,
     send_mailing,
     ENV_PATH
 )
